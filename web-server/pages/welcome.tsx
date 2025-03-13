@@ -107,7 +107,7 @@ const OnboardingContent = () => {
                   Welcome
                 </Line>
                 <Line sx={{ fontSize: '14px', opacity: '60%' }} white>
-                  We’re your partner in productivity
+                  We're your partner in productivity
                 </Line>
               </FlexBox>
               <FlexBox col gap={'16px'}>
