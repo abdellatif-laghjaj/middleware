@@ -17,7 +17,6 @@ import { TeamSelectorModes } from '@/types/resources';
 import { AvatarPageTitle } from './AvatarPageTitle';
 import { BranchSelector } from './BranchSelector';
 import { FlexBox, FlexBoxProps } from './FlexBox';
-import { GithubButton } from './GithubButton';
 import { Hotkey } from './Hotkey';
 import { Logo } from './Logo/Logo';
 import { Tabs } from './Tabs';
@@ -101,7 +100,6 @@ export const PageHeader: FC<
             {children}
           </FlexBox>
           {Boolean(subRoutes?.length) && <PageTabs subRoutes={subRoutes} />}
-          <GithubButton />
         </FlexBox>
         {showSelectorSection && (
           <>

@@ -18,7 +18,9 @@ import {
   useTheme,
   InputLabel,
   FormControl,
-  OutlinedInput
+  OutlinedInput,
+  Avatar,
+  Tooltip
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { FC, useCallback } from 'react';
@@ -267,32 +269,18 @@ const TeamRepos: FC = () => {
                   overflow: 'hidden'
                 }}
               >
-                <FlexBox
-                  col
-                  sx={{ maxWidth: '200px', overflow: 'hidden' }}
-                  tooltipPlacement="right"
-                  title={
-                    checkOverflow(option) ? (
-                      <OverFlowTooltip
-                        parent={option.parent}
-                        name={option.name}
-                      />
-                    ) : undefined
-                  }
-                >
-                  <FlexBox gap={1 / 2} alignCenter>
-                    {option.provider === Integration.GITHUB ? (
-                      <GitHub sx={{ fontSize: '14px' }} />
-                    ) : (
-                      <GitlabIcon height={12} width={12} />
-                    )}
-                    <Line tiny>
-                      {addEllipsis(option.parent, MAX_LENGTH_PARENT_NAME)}
-                    </Line>
-                  </FlexBox>
-                  <Line>{addEllipsis(option.name, MAX_LENGTH_REPO_NAME)}</Line>
+                <FlexBox gap={1} alignCenter>
+                  <Tooltip title={option.parent || "Organization"}>
+                    <Avatar 
+                      src={option.avatar_url || `https://avatars.githubusercontent.com/${option.parent || 'github'}`}
+                      alt={option.parent || option.name}
+                      sx={{ width: 24, height: 24 }}
+                    />
+                  </Tooltip>
+                  <Line>
+                    {option.parent || option.name}/{option.name}
+                  </Line>
                 </FlexBox>
-                {selected ? <Close fontSize="small" /> : null}
               </FlexBox>
             </li>
           )}
