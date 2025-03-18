@@ -38,6 +38,57 @@ const getSchema = yup.object().shape({
 
 const endpoint = new Endpoint(pathSchema);
 
+// Add this function to fetch contributor performance data
+const fetchContributorPerformance = async ({
+  teamId,
+  currStatsTimeObject,
+  prevStatsTimeObject,
+  prFilter
+}: {
+  teamId: ID;
+  currStatsTimeObject: TimeObject;
+  prevStatsTimeObject: TimeObject;
+  prFilter?: PrFilter;
+}) => {
+  try {
+    const result = await handleApi(
+      `internal/team/${teamId}/contributor_performance`,
+      {
+        params: {
+          ...currStatsTimeObject,
+          ...prevStatsTimeObject,
+          pr_filter: prFilter
+        }
+      }
+    );
+
+    const contributors = (result as any[]).map((contributor) => ({
+      contributor: {
+        id: contributor.id,
+        name: contributor.name,
+        username: contributor.username,
+        avatar_url: contributor.avatar_url,
+        activity_level: contributor.activity_level,
+        total_contributions: contributor.total_contributions,
+        pull_requests: contributor.pull_requests,
+        average_lead_time: parseFloat(contributor.average_lead_time || '0'),
+        average_review_time: 0, // This would need additional calculation
+        change_failure_rate: parseFloat(contributor.change_failure_rate || '0')
+      },
+      insights: {
+        last_updated: new Date(contributor.last_updated * 1000).toISOString(),
+        percentile_rank: 0, // Would need additional calculation
+        trend: 'stable' as const // Would need additional calculation
+      }
+    }));
+
+    return { contributors };
+  } catch (err) {
+    console.error('Error fetching contributor performance:', err);
+    return { contributors: [] };
+  }
+};
+
 endpoint.handle.GET(getSchema, async (req, res) => {
   if (req.meta?.features?.use_mock_data) {
     return res.send(mockDoraMetrics);
@@ -89,6 +140,7 @@ endpoint.handle.GET(getSchema, async (req, res) => {
     meanTimeToRestoreResponse,
     changeFailureRateResponse,
     deploymentFrequencyResponse,
+    contributorResponse,
     leadtimePrs,
     teamRepos
   ] = await Promise.all([
@@ -150,6 +202,18 @@ endpoint.handle.GET(getSchema, async (req, res) => {
       workflowFilter: workflowFilters,
       prFilter: prFilters
     }),
+    fetchContributorPerformance({
+      teamId,
+      currStatsTimeObject: {
+        from_time: isoDateString(currentCycleStartDay),
+        to_time: isoDateString(currentCycleEndDay)
+      },
+      prevStatsTimeObject: {
+        from_time: isoDateString(prevCycleStartDay),
+        to_time: isoDateString(prevCycleEndDay)
+      },
+      prFilter: prFilters
+    }),
     getTeamLeadTimePRs(teamId, from_date, to_date, prFilters).then(
       (r) => r.data
     ),
@@ -173,7 +237,8 @@ endpoint.handle.GET(getSchema, async (req, res) => {
       deploymentFrequencyResponse.deployment_frequency_trends,
     lead_time_prs: leadtimePrs,
     assigned_repos: teamRepos,
-    unsynced_repos: unsyncedRepos
+    unsynced_repos: unsyncedRepos,
+    contributors: contributorResponse.contributors // Add contributors data to response
   } as TeamDoraMetricsApiResponseType);
 });
 

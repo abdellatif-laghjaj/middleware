@@ -5,6 +5,7 @@ import { ReactChild, ReactFragment, ReactPortal } from 'react';
 import { Row } from '@/constants/db';
 import { CIProvider, Integration } from '@/constants/integrations';
 import { Team } from '@/types/api/teams';
+import { TeamContributorPerformance } from '@/slices/dora_metrics';
 
 export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
@@ -558,40 +559,33 @@ export type ChangeFailureRateTrendsApiResponse = Record<
 
 export type TeamDoraMetricsApiResponseType = {
   lead_time_stats: {
-    current: LeadTimeApiResponse;
-    previous: LeadTimeApiResponse;
+    current: LeadTimeStatsV2;
+    previous: LeadTimeStatsV2;
   };
-  lead_time_trends: {
-    current: LeadTimeTrendsApiResponse;
-    previous: LeadTimeTrendsApiResponse;
-  };
+  lead_time_trends: DoraMetricTrendsType;
   mean_time_to_restore_stats: {
-    current: MeanTimeToRestoreApiResponse;
-    previous: MeanTimeToRestoreApiResponse;
+    current: MeanTimeToRestoreStatsV2;
+    previous: MeanTimeToRestoreStatsV2;
   };
-  mean_time_to_restore_trends: {
-    current: MeanTimeToRestoreApiTrendsResponse;
-    previous: MeanTimeToRestoreApiTrendsResponse;
-  };
+  mean_time_to_restore_trends: DoraMetricTrendsType;
   change_failure_rate_stats: {
-    current: ChangeFailureRateApiResponse;
-    previous: ChangeFailureRateApiResponse;
+    current: ChangeFailureRateStatsV2;
+    previous: ChangeFailureRateStatsV2;
   };
-  change_failure_rate_trends: {
-    current: ChangeFailureRateTrendsApiResponse;
-    previous: ChangeFailureRateTrendsApiResponse;
-  };
+  change_failure_rate_trends: DoraMetricTrendsType;
   deployment_frequency_stats: {
-    current: DeploymentFrequencyAnalyticsResponse;
-    previous: DeploymentFrequencyAnalyticsResponse;
+    current: DeploymentFrequencyBaseStatsV2;
+    previous: DeploymentFrequencyBaseStatsV2;
   };
-  deployment_frequency_trends: {
-    current: Record<DateString, DeploymentFrequencyTrendBase>;
-    previous: Record<DateString, DeploymentFrequencyTrendBase>;
-  };
+  deployment_frequency_trends: { current: DateStringToDeploymentFrequency; previous: DateStringToDeploymentFrequency };
+  allReposAssignedToTeam: Row<'OrgRepo'>[];
+  workflowConfiguredRepos: Row<'OrgRepo'>[];
+  deploymentsConfigured: boolean;
+  deploymentsConfiguredForAllRepos: boolean;
   lead_time_prs: PR[];
   assigned_repos: (Row<'TeamRepos'> & Row<'OrgRepo'>)[];
   unsynced_repos: ID[];
+  contributors: TeamContributorPerformance[];
 };
 
 export enum ActiveBranchMode {

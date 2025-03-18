@@ -34,6 +34,7 @@ import { ChangeTimeCard } from './DoraCards/ChangeTimeCard';
 import { MeanTimeToRestoreCard } from './DoraCards/MeanTimeToRestoreCard';
 import { DataStillSyncing } from './DoraCards/SkeletalCard';
 import { WeeklyDeliveryVolumeCard } from './DoraCards/WeeklyDeliveryVolumeCard';
+import { ContributorPerformanceTable } from './ContributorPerformanceTable';
 
 export const DoraMetricsBody = () => {
   const dispatch = useDispatch();
@@ -89,6 +90,9 @@ export const DoraMetricsBody = () => {
   const stats = useDoraStats();
 
   const { isSyncing } = useSyncedRepos();
+
+  // Get contributors from the Redux store
+  const contributors = useSelector((s) => s.doraMetrics.contributors || []);
 
   if (isErrored)
     return (
@@ -168,6 +172,9 @@ export const DoraMetricsBody = () => {
           <ClassificationPills />
         </FlexBox>
       </FlexBox>
+
+      {/* Add the contributor performance table */}
+      <ContributorPerformanceTable contributors={contributors} />
     </FlexBox>
   );
 };

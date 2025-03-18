@@ -42,6 +42,7 @@ export type State = StateFetchConfig<{
   revert_prs: PR[];
   summary_prs: PR[];
   unsyncedRepos: ID[];
+  contributors: TeamContributorPerformance[];
 }>;
 
 export type DoraAiAPIResponse = {
@@ -52,6 +53,29 @@ export type DoraAiAPIResponse = {
   deployment_frequency_trends_summary: string;
   dora_trend_summary: string;
   dora_compiled_summary: string;
+};
+
+// New type for contributor performance data
+export type ContributorPerformance = {
+  id: string;
+  name: string;
+  username: string;
+  avatar_url: string;
+  activity_level: number;
+  total_contributions: number;
+  pull_requests: number;
+  average_lead_time: number; // in seconds
+  average_review_time: number; // in seconds
+  change_failure_rate: number; // in percentage
+};
+
+export type TeamContributorPerformance = {
+  contributor: ContributorPerformance;
+  insights: {
+    last_updated: string;
+    percentile_rank: number;
+    trend: 'improving' | 'declining' | 'stable';
+  };
 };
 
 const initialState: State = {
@@ -73,7 +97,8 @@ const initialState: State = {
   deployments_map: {},
   revert_prs: [],
   summary_prs: [],
-  unsyncedRepos: []
+  unsyncedRepos: [],
+  contributors: []
 };
 
 export const doraMetricsSlice = createSlice({
@@ -124,6 +149,7 @@ export const doraMetricsSlice = createSlice({
         state.allReposAssignedToTeam = action.payload.assigned_repos;
         state.summary_prs = action.payload.lead_time_prs;
         state.unsyncedRepos = action.payload.unsynced_repos;
+        state.contributors = action.payload.contributors || [];
       }
     );
     addFetchCasesToReducer(
