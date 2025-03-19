@@ -221,9 +221,9 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                     : 'N/A'}
                 </TableCell>
                 <TableCell align="right">{contributor.incidentCount || 0}</TableCell>
-                <TableCell align="right">{formatTime(contributor.leadTime)}</TableCell>
-                <TableCell align="right">{formatTime(contributor.mergeTime)}</TableCell>
-                <TableCell align="right">{formatTime(contributor.reworkTime)}</TableCell>
+                <TableCell align="right">{contributor.leadTime}</TableCell>
+                <TableCell align="right">{contributor.mergeTime}</TableCell>
+                <TableCell align="right">{contributor.reworkTime}</TableCell>
                 <TableCell align="right">
                   <ActivityChip contributions={contributor.contributions} />
                 </TableCell>
