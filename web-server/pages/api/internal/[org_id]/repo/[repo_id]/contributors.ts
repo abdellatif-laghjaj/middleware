@@ -3,8 +3,9 @@ import axios from 'axios';
 
 import { Endpoint } from '@/api-helpers/global';
 import { handleRequest } from '@/api-helpers/axios';
-import { db } from '@/utils/db';
-import { Table } from '@/constants/db';
+import { db, getFirstRow, dbRaw } from '@/utils/db';
+import { Table, Integration } from '@/constants/db';
+import { dec } from '@/utils/auth-supplementary';
 
 // Define the schema for path parameters
 const pathSchema = yup.object().shape({
@@ -28,6 +29,19 @@ interface GitHubContributor {
   contributions: number;
 }
 
+// Get GitHub token from Integration table
+const getGithubToken = async (org_id: string) => {
+  return await db('Integration')
+    .select()
+    .where({
+      org_id,
+      name: Integration.GITHUB
+    })
+    .returning('*')
+    .then(getFirstRow)
+    .then((r) => dec(r.access_token_enc_chunks));
+};
+
 // Handle GET requests
 endpoint.handle.GET(getSchema, async (req, res) => {
   const { org_id, repo_id } = req.payload;
@@ -44,13 +58,10 @@ endpoint.handle.GET(getSchema, async (req, res) => {
       return res.status(404).json({ error: 'Repository not found' });
     }
     
-    // Get GitHub integration token
-    const integration = await db(Table.Integration)
-      .where('org_id', org_id)
-      .andWhere('name', 'github')
-      .first();
+    // Get GitHub integration token using the correct method
+    const token = await getGithubToken(org_id);
     
-    if (!integration || !integration.token) {
+    if (!token) {
       return res.status(400).json({ error: 'GitHub integration not configured' });
     }
     
@@ -61,7 +72,7 @@ endpoint.handle.GET(getSchema, async (req, res) => {
     const githubApiUrl = `https://api.github.com/repos/${repoPath}/contributors`;
     const response = await axios.get<GitHubContributor[]>(githubApiUrl, {
       headers: {
-        Authorization: `Bearer ${integration.token}`,
+        Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github.v3+json'
       },
       params: {
