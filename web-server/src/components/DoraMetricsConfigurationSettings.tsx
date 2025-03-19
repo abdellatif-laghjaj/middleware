@@ -1,6 +1,6 @@
 import SettingsIcon from '@mui/icons-material/Settings';
-import { Button, Menu, MenuItem } from '@mui/material';
-import { useCallback, useRef, useEffect } from 'react';
+import { Button, Menu, MenuItem, Switch, FormControlLabel } from '@mui/material';
+import { useCallback, useRef, useEffect, useState } from 'react';
 
 import { FlexBox } from '@/components/FlexBox';
 import { TeamProductionBranchSelector } from '@/components/TeamProductionBranchSelector';
@@ -73,6 +73,24 @@ export const DoraMetricsConfigurationSettings = () => {
           }}
         >
           Configure Production Branches
+        </MenuItem>
+        <MenuItem>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                defaultChecked
+                onChange={(e) => {
+                  // Toggle contributor performance visibility
+                  const contributorSection = document.getElementById('contributor-performance-section');
+                  if (contributorSection) {
+                    contributorSection.style.display = e.target.checked ? 'flex' : 'none';
+                  }
+                }}
+              />
+            }
+            label="Show Contributor Performance"
+          />
         </MenuItem>
       </Menu>
     </>

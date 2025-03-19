@@ -1,9 +1,10 @@
-import { AutoGraphRounded } from '@mui/icons-material';
+import { AutoGraphRounded, PeopleAltRounded } from '@mui/icons-material';
 import { Grid, Divider, Button } from '@mui/material';
 import Link from 'next/link';
 import { FC, useEffect, useMemo } from 'react';
 
 import { AiButton } from '@/components/AiButton';
+import { ContributorPerformanceTable } from '@/components/ContributorPerformanceTable';
 import { DoraMetricsConfigurationSettings } from '@/components/DoraMetricsConfigurationSettings';
 import { DoraScoreV2 } from '@/components/DoraScoreV2';
 import { EmptyState } from '@/components/EmptyState';
@@ -17,6 +18,7 @@ import { ROUTES } from '@/constants/routes';
 import { FetchState } from '@/constants/ui-states';
 import { useDoraStats } from '@/content/DoraMetrics/DoraCards/sharedHooks';
 import { useAuth } from '@/hooks/useAuth';
+import { useContributorData } from '@/hooks/useContributorData';
 import { useBoolState } from '@/hooks/useEasyState';
 import { usePageRefreshCallback } from '@/hooks/usePageRefreshCallback';
 import {
@@ -31,6 +33,7 @@ import { getRandomLoadMsg } from '@/utils/loading-messages';
 import { ClassificationPills } from './ClassificationPills';
 import { ChangeFailureRateCard } from './DoraCards/ChangeFailureRateCard';
 import { ChangeTimeCard } from './DoraCards/ChangeTimeCard';
+import { ContributorPerformanceSection } from './ContributorPerformanceSection';
 import { MeanTimeToRestoreCard } from './DoraCards/MeanTimeToRestoreCard';
 import { DataStillSyncing } from './DoraCards/SkeletalCard';
 import { WeeklyDeliveryVolumeCard } from './DoraCards/WeeklyDeliveryVolumeCard';
@@ -156,6 +159,16 @@ export const DoraMetricsBody = () => {
           <MeanTimeToRestoreCard />
         </Grid>
       </Grid>
+      <Divider />
+      <FlexBox col gap2 mt={2}>
+        <FlexBox gap={2} alignCenter>
+          <PeopleAltRounded />
+          <Line white huge bold>
+            Contributor Performance
+          </Line>
+        </FlexBox>
+        <ContributorPerformanceSection />
+      </FlexBox>
       <Divider />
       <FlexBox col gap1 flexGrow={1}>
         <FlexBox gap={4}>
