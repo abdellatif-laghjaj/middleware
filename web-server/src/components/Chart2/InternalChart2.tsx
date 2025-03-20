@@ -62,9 +62,10 @@ const ChartInternal: FC<ChartProps> = memo(
     ).includes(type);
 
     const chartLabels = useMemo(() => {
-      if (!labels) return staticArray(series[0].data.length, (i) => i + 1);
-      return labels;
-    }, [labels, series]);
+  if (!series || !series.length || !series[0]?.data?.length) return [];
+  if (!labels) return staticArray(series[0].data.length, (i) => i + 1);
+  return labels;
+}, [labels, series]);
 
     const chartOptions = useMemo(
       () =>

@@ -38,6 +38,7 @@ import { Line } from '@/components/Text';
 import { ContributorData } from '@/hooks/useContributorData';
 import { SimpleAvatar } from '@/components/SimpleAvatar';
 import { getGHAvatar } from '@/utils/user';
+import { useOverlayPage } from '@/components/OverlayPageContext';
 
 type SortDirection = 'asc' | 'desc';
 type SortField = keyof ContributorData | '';
@@ -90,6 +91,7 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
   const theme = useTheme();
   const [sortField, setSortField] = useState<SortField>('contributions');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { addPage } = useOverlayPage();
 
   const handleSort = useCallback((field: SortField) => {
     setSortField(prevField => {
@@ -101,6 +103,16 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
       return field;
     });
   }, []);
+
+  const handleContributorClick = useCallback((contributor: ContributorData) => {
+    addPage({
+      page: {
+        ui: 'contributor_details',
+        props: { contributor },
+        title: `${contributor.name}'s Contributions`
+      }
+    });
+  }, [addPage]);
 
   const sortedContributors = useMemo(() => {
     if (!contributors.length) return [];
@@ -298,7 +310,18 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
           </TableHead>
           <TableBody>
             {sortedContributors.map((contributor) => (
-              <TableRow key={contributor.username} hover>
+              <TableRow 
+                key={contributor.username} 
+                hover
+                onClick={() => handleContributorClick(contributor)}
+                sx={{ 
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  '&:hover': {
+                    backgroundColor: alpha(theme.colors.primary.lighter, 0.1),
+                  }
+                }}
+              >
                 <TableCell component="th" scope="row">
                   <FlexBox alignCenter gap={1}>
                     <Tooltip 
