@@ -1,49 +1,43 @@
-import { lazy } from 'react';
+import dynamic from 'next/dynamic';
 
 export const overlaysImportMap = {
-  dummy: lazy(() =>
-    import('@/components/OverlayComponents/Dummy').then((c) => ({
-      default: c.Dummy
-    }))
+  all_incidents: dynamic(
+    () => import('@/content/DoraMetrics/Incidents').then((m) => m.Incidents),
+    { ssr: false }
   ),
-  team_prs: lazy(() =>
-    import('@/content/PullRequests/TeamInsightsBody').then((c) => ({
-      default: c.TeamInsightsBodyRouterless
-    }))
+  resolved_incidents: dynamic(
+    () =>
+      import('@/content/DoraMetrics/ResolvedIncidents').then(
+        (m) => m.ResolvedIncidents
+      ),
+    { ssr: false }
   ),
-  team_edit: lazy(() =>
-    import('@/components/OverlayComponents/TeamEdit').then((c) => ({
-      default: c.TeamEdit
-    }))
+  deployment_freq: dynamic(
+    () =>
+      import('@/content/PullRequests/DeploymentFrequencyGraph').then(
+        (m) => m.DeploymentFrequencyGraph
+      ),
+    { ssr: false }
   ),
-  deployment_freq: lazy(() =>
-    import('@/content/PullRequests/DeploymentInsightsOverlay').then((c) => ({
-      default: c.DeploymentInsightsOverlay
-    }))
+  team_prs: dynamic(
+    () =>
+      import('@/content/PullRequests/TeamInsightsBody').then(
+        (m) => m.TeamInsightsBody
+      ),
+    { ssr: false }
   ),
-  change_failure_rate: lazy(() =>
-    import('@/components/OverlayComponents/ChangeFailureRate').then((c) => ({
-      default: c.ChangeFailureRate
-    }))
+  deployment_insights: dynamic(
+    () =>
+      import('@/content/PullRequests/DeploymentInsightsOverlay').then(
+        (m) => m.DeploymentInsightsOverlay
+      ),
+    { ssr: false }
   ),
-  all_incidents: lazy(() =>
-    import('@/content/DoraMetrics/Incidents').then((c) => ({
-      default: c.AllIncidentsBody
-    }))
-  ),
-  resolved_incidents: lazy(() =>
-    import('@/content/DoraMetrics/ResolvedIncidents').then((c) => ({
-      default: c.ResolvedIncidentsBody
-    }))
-  ),
-  ai_analysis: lazy(() =>
-    import('@/content/DoraMetrics/AIAnalysis/AIAnalysis').then((c) => ({
-      default: c.AIAnalysis
-    }))
-  ),
-  system_logs: lazy(() =>
-    import('@/content/Service/SystemLogs').then((c) => ({
-      default: c.SystemLogs
-    }))
+  contributor_details: dynamic(
+    () =>
+      import('@/content/DoraMetrics/ContributorDetailsOverlay').then(
+        (m) => m.ContributorDetailsOverlay
+      ),
+    { ssr: false }
   )
 };

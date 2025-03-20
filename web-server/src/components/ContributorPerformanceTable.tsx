@@ -38,6 +38,7 @@ import { Line } from '@/components/Text';
 import { ContributorData } from '@/hooks/useContributorData';
 import { SimpleAvatar } from '@/components/SimpleAvatar';
 import { getGHAvatar } from '@/utils/user';
+import { useOverlayPage } from '@/components/OverlayPageContext';
 
 type SortDirection = 'asc' | 'desc';
 type SortField = keyof ContributorData | '';
@@ -90,6 +91,7 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
   const theme = useTheme();
   const [sortField, setSortField] = useState<SortField>('contributions');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const { addPage } = useOverlayPage();
 
   const handleSort = useCallback((field: SortField) => {
     setSortField(prevField => {
@@ -298,7 +300,23 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
           </TableHead>
           <TableBody>
             {sortedContributors.map((contributor) => (
-              <TableRow key={contributor.username} hover>
+              <TableRow 
+                key={contributor.username} 
+                hover 
+                onClick={() => {
+                  addPage({
+                    page: {
+                      title: `${contributor.name}'s Contribution Details`,
+                      ui: 'contributor_details',
+                      props: {
+                        contributor,
+                        hasGithub
+                      }
+                    }
+                  });
+                }}
+                sx={{ cursor: 'pointer' }}
+              >
                 <TableCell component="th" scope="row">
                   <FlexBox alignCenter gap={1}>
                     <Tooltip 
