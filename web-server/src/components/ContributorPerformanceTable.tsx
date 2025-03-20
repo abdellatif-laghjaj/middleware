@@ -108,16 +108,6 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
     });
   }, []);
 
-  const handleContributorClick = useCallback((contributor: ContributorData) => {
-    addPage({
-      page: {
-        ui: 'contributor_details',
-        props: { contributor },
-        title: `${contributor.name}'s Contributions`
-      }
-    });
-  }, [addPage]);
-
   const sortedContributors = useMemo(() => {
     if (!contributors.length) return [];
     return [...contributors].sort((a, b) => {
