@@ -1,154 +1,197 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from '@/store';
+import { useEffect, useMemo, useState } from 'react';
+import { useSelector } from '@/store';
+import { PR } from '@/types/resources';
 import { useAuth } from '@/hooks/useAuth';
 import { useSingleTeamConfig } from '@/hooks/useStateTeamConfig';
-import { handleApi } from '@/api-helpers/axios-api-instance';
-import { ContributorData } from '@/components/ContributorPerformanceTable';
+import { getDurationString } from '@/utils/date';
 
-// Define the response type from the API
-interface ContributorApiResponse {
+export interface ContributorData {
   name: string;
-  avatar_url?: string;
+  username: string;
+  avatarUrl?: string;
   contributions: number;
+  prs: number;
+  deploymentCount: number;
+  successfulDeployments: number;
+  failedDeployments: number;
+  incidentCount: number;
+  leadTime?: number;
+  leadTimeFormatted?: string;
+  mergeTime?: number;
+  mergeTimeFormatted?: string;
+  reworkTime?: number;
+  reworkTimeFormatted?: string;
+  additions: number;
+  deletions: number;
+  isBot: boolean;
 }
 
-/**
- * Hook to fetch and process GitHub contributor data
- * @returns Object containing contributor data and loading state
- */
+// Bot usernames commonly used in GitHub
+const BOT_PATTERNS = [
+  'bot',
+  'jenkins',
+  'travis',
+  'circleci',
+  'github-actions',
+  'dependabot',
+  'renovate',
+  'snyk',
+  'github-actions[bot]',
+  'dependabot[bot]',
+  'renovate[bot]'
+];
+
+const isBot = (username: string): boolean => {
+  if (!username) return false;
+  const lowerUsername = username.toLowerCase();
+  return BOT_PATTERNS.some(pattern => lowerUsername.includes(pattern));
+};
+
 export const useContributorData = () => {
-  const [contributors, setContributors] = useState<ContributorData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
-  const dispatch = useDispatch();
-  const { orgId } = useAuth();
-  const { singleTeamId, dates } = useSingleTeamConfig();
+  // Get all PRs from the store - similar to how TeamInsightsBody does it
+  const prs = useSelector(state => state.doraMetrics.summary_prs || []);
+  const deployments = useSelector(state => state.doraMetrics.all_deployments || []);
+  const incidents = useSelector(state => state.doraMetrics.all_incidents || []);
+  const { singleTeamId } = useSingleTeamConfig();
+  const { hasGithub } = useAuth();
+
+  // Create a cache key based on the data that would cause a refresh
+  const cacheKey = useMemo(() => {
+    return `contributors-${singleTeamId}-${prs.length}-${deployments.length}-${incidents.length}`;
+  }, [singleTeamId, prs.length, deployments.length, incidents.length]);
   
-  // Get data from the store
-  const prs = useSelector((s) => s.doraMetrics.summary_prs || []);
-  const deployments = useSelector((s) => s.doraMetrics.all_deployments || []);
-  const teamRepos = useSelector((s) => s.team.teamReposMaps[singleTeamId] || []);
-  
-  useEffect(() => {
-    const fetchContributorData = async () => {
-      if (!orgId || !singleTeamId) return;
-      
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        
-        // Create a map to store contributor data
-        const contributorsMap = new Map<string, ContributorData>();
-        
-        // Process repository contributor data
-        for (const repo of teamRepos) {
-          try {
-            // Fetch contributor data from GitHub API via backend endpoint
-            const repoContributors = await handleApi<ContributorApiResponse[]>(
-              `internal/${orgId}/repo/${repo.id}/contributors`,
-              {
-                params: {
-                  from_date: dates.start,
-                  to_date: dates.end
-                }
-              }
-            );
-            
-            // Process contributor data
-            repoContributors.forEach((contributor) => {
-              const existingContributor = contributorsMap.get(contributor.name);
-              
-              if (existingContributor) {
-                // Update existing contributor data
-                contributorsMap.set(contributor.name, {
-                  ...existingContributor,
-                  contributions: existingContributor.contributions + contributor.contributions,
-                  avatarUrl: contributor.avatar_url || existingContributor.avatarUrl
-                });
-              } else {
-                // Add new contributor
-                contributorsMap.set(contributor.name, {
-                  name: contributor.name,
-                  avatarUrl: contributor.avatar_url,
-                  contributions: contributor.contributions,
-                  prs: 0,
-                  deploymentCount: 0,
-                  successfulDeployments: 0,
-                  failedDeployments: 0,
-                  incidentCount: 0
-                });
-              }
-            });
-          } catch (err) {
-            console.error(`Error fetching contributors for repo ${repo.name}:`, err);
-          }
-        }
-        
-        // Process PR data
-        prs.forEach((pr) => {
-          const contributor = contributorsMap.get(pr.author);
-          if (contributor) {
-            contributor.prs = (contributor.prs || 0) + 1;
-            
-            // Calculate average lead time
-            if (pr.lead_time) {
-              contributor.leadTime = ((contributor.leadTime || 0) * (contributor.prs - 1) + pr.lead_time) / contributor.prs;
-            }
-            
-            // Calculate average merge time
-            if (pr.merge_time) {
-              contributor.mergeTime = ((contributor.mergeTime || 0) * (contributor.prs - 1) + pr.merge_time) / contributor.prs;
-            }
-            
-            // Calculate average rework time
-            if (pr.rework_time) {
-              contributor.reworkTime = ((contributor.reworkTime || 0) * (contributor.prs - 1) + pr.rework_time) / contributor.prs;
-            }
-            
-            contributorsMap.set(pr.author, contributor);
-          }
-        });
-        
-        // Process deployment data
-        deployments.forEach((deployment) => {
-          if (deployment.author) {
-            const contributor = contributorsMap.get(deployment.author);
-            if (contributor) {
-              contributor.deploymentCount = (contributor.deploymentCount || 0) + 1;
-              
-              if (deployment.status === 'SUCCESS') {
-                contributor.successfulDeployments = (contributor.successfulDeployments || 0) + 1;
-              } else {
-                contributor.failedDeployments = (contributor.failedDeployments || 0) + 1;
-              }
-              
-              // Count incidents
-              if (deployment.incidents && deployment.incidents.length > 0) {
-                contributor.incidentCount = (contributor.incidentCount || 0) + deployment.incidents.length;
-              }
-              
-              contributorsMap.set(deployment.author, contributor);
-            }
-          }
-        });
-        
-        // Convert map to array and sort by contributions
-        const contributorsArray = Array.from(contributorsMap.values())
-          .sort((a, b) => b.contributions - a.contributions);
-        
-        setContributors(contributorsArray);
-      } catch (err) {
-        console.error('Error fetching contributor data:', err);
-        setError('Failed to fetch contributor data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Create a mapping of deployment IDs to success/failure status
+  const deploymentsMap = useMemo(() => {
+    const map = new Map();
+    deployments.forEach(deployment => {
+      map.set(deployment.id, { 
+        success: deployment.status === 'success',
+        actor: deployment.event_actor?.username
+      });
+    });
+    return map;
+  }, [deployments]);
+
+  // Calculate contributor data from PRs and other sources - without state changes
+  const contributors = useMemo(() => {
+    if (!prs.length) return [];
     
-    fetchContributorData();
-  }, [orgId, singleTeamId, dates.start, dates.end, prs, deployments]);
-  
-  return { contributors, isLoading, error };
+    // Create a map to store contributor data with username as key
+    const contributorsMap = new Map<string, ContributorData>();
+    
+    // Process PRs to collect contributor data
+    prs.forEach((pr: PR) => {
+      const author = pr.author;
+      if (!author || !author.username) return;
+      
+      // Skip bot accounts
+      if (isBot(author.username)) return;
+      
+      const username = author.username;
+      const name = author.name || username;
+      
+      // Get or initialize contributor data
+      if (!contributorsMap.has(username)) {
+        contributorsMap.set(username, {
+          name,
+          username,
+          avatarUrl: author.avatar_url,
+          contributions: 0,
+          prs: 0,
+          deploymentCount: 0,
+          successfulDeployments: 0,
+          failedDeployments: 0,
+          incidentCount: 0,
+          additions: 0,
+          deletions: 0,
+          leadTime: 0,
+          mergeTime: 0,
+          reworkTime: 0,
+          isBot: false
+        });
+      }
+      
+      const contributor = contributorsMap.get(username)!;
+      
+      // Increment PR count
+      contributor.prs += 1;
+      
+      // Add contributions (which is commits in this context)
+      contributor.contributions += pr.commits || 0;
+      
+      // Add code changes
+      contributor.additions += pr.additions || 0;
+      contributor.deletions += pr.deletions || 0;
+      
+      // Track lead time, merge time, and rework time
+      if (pr.lead_time) {
+        if (!contributor.leadTime) contributor.leadTime = 0;
+        contributor.leadTime = ((contributor.leadTime * (contributor.prs - 1)) + pr.lead_time) / contributor.prs;
+        contributor.leadTimeFormatted = getDurationString(contributor.leadTime);
+      }
+      
+      if (pr.merge_time) {
+        if (!contributor.mergeTime) contributor.mergeTime = 0;
+        contributor.mergeTime = ((contributor.mergeTime * (contributor.prs - 1)) + pr.merge_time) / contributor.prs;
+        contributor.mergeTimeFormatted = getDurationString(contributor.mergeTime);
+      }
+      
+      if (pr.rework_time) {
+        if (!contributor.reworkTime) contributor.reworkTime = 0;
+        contributor.reworkTime = ((contributor.reworkTime * (contributor.prs - 1)) + pr.rework_time) / contributor.prs;
+        contributor.reworkTimeFormatted = getDurationString(contributor.reworkTime);
+      }
+    });
+    
+    // Process deployments to track deployment metrics
+    deployments.forEach(deployment => {
+      const actor = deployment.event_actor?.username;
+      if (!actor || isBot(actor) || !contributorsMap.has(actor)) return;
+      
+      const contributor = contributorsMap.get(actor)!;
+      contributor.deploymentCount += 1;
+      if (deployment.status === 'success') {
+        contributor.successfulDeployments += 1;
+      } else {
+        contributor.failedDeployments += 1;
+      }
+    });
+    
+    // Process incidents to track incident metrics
+    incidents.forEach(incident => {
+      const assignee = incident.assigned_to?.username;
+      if (!assignee || isBot(assignee) || !contributorsMap.has(assignee)) return;
+      
+      const contributor = contributorsMap.get(assignee)!;
+      contributor.incidentCount += 1;
+    });
+    
+    // Convert map to array and sort by contributions (descending)
+    return Array.from(contributorsMap.values())
+      .sort((a, b) => b.contributions - a.contributions);
+  }, [prs, deployments, incidents]);
+
+  // Handle loading state and updates separately in useEffect
+  useEffect(() => {
+    if (prs.length === 0) {
+      if (singleTeamId) {
+        setIsLoading(true);
+      }
+    } else {
+      setIsLoading(false);
+      setLastUpdated(new Date());
+    }
+  }, [prs.length, singleTeamId, cacheKey]);
+
+  return {
+    contributors,
+    isLoading,
+    error,
+    lastUpdated,
+    hasGithub
+  };
 };

@@ -8,119 +8,158 @@ import {
   TableSortLabel,
   Paper,
   Chip,
-  CircularProgress
+  Avatar,
+  Tooltip,
+  Typography,
+  useTheme,
+  CircularProgress,
+  Box
 } from '@mui/material';
-import { FC, useState, useEffect, useMemo } from 'react';
+import {
+  Person,
+  Code,
+  Timeline,
+  AccessTime,
+  Build,
+  BugReport,
+  CloudUpload,
+  CheckCircle,
+  Error as ErrorIcon,
+  ArrowUpward,
+  ArrowDownward,
+  GitHub
+} from '@mui/icons-material';
+import { FC, useState, useCallback, useMemo } from 'react';
+import { format } from 'date-fns';
+import { alpha } from '@mui/material/styles';
 
 import { FlexBox } from '@/components/FlexBox';
 import { Line } from '@/components/Text';
-import { EmptyState } from '@/components/EmptyState';
-import { formatTime } from '@/utils/date';
+import { ContributorData } from '@/hooks/useContributorData';
+import { SimpleAvatar } from '@/components/SimpleAvatar';
+import { getGHAvatar } from '@/utils/user';
 
-// Define the contributor data structure
-export interface ContributorData {
-  name: string;
-  avatarUrl?: string;
-  contributions: number;
-  prs: number;
-  deploymentCount: number;
-  successfulDeployments: number;
-  failedDeployments: number;
-  incidentCount: number;
-  leadTime?: number;
-  mergeTime?: number;
-  reworkTime?: number;
-}
+type SortDirection = 'asc' | 'desc';
+type SortField = keyof ContributorData | '';
 
 interface ContributorPerformanceTableProps {
   contributors: ContributorData[];
   isLoading?: boolean;
+  lastUpdated?: Date | null;
+  hasGithub?: boolean;
 }
 
-type SortDirection = 'asc' | 'desc';
-type SortField = keyof ContributorData;
-
-// Activity level component to visually represent contributor activity
 const ActivityChip: FC<{ contributions: number }> = ({ contributions }) => {
-  let color: 'success' | 'info' | 'warning' | 'error' = 'info';
-  let label = 'Medium';
+  let label = 'Low';
+  let color: 'success' | 'info' | 'warning' | 'error' | 'default' = 'default';
 
-  if (contributions > 100) {
-    color = 'success';
-    label = 'High';
-  } else if (contributions > 50) {
-    color = 'info';
-    label = 'Medium';
-  } else if (contributions > 10) {
-    color = 'warning';
-    label = 'Low';
-  } else {
+  if (contributions >= 50) {
+    label = 'Very High';
     color = 'error';
-    label = 'Very Low';
+  } else if (contributions >= 30) {
+    label = 'High';
+    color = 'warning';
+  } else if (contributions >= 10) {
+    label = 'Medium';
+    color = 'info';
+  } else if (contributions >= 5) {
+    label = 'Low';
+    color = 'success';
   }
 
-  return <Chip size="small" color={color} label={label} />;
+  return <Chip size="small" label={label} color={color} />;
 };
+
+const NoContributorsMessage: FC = () => (
+  <FlexBox col alignCenter justifyCenter p={4}>
+    <GitHub sx={{ fontSize: 60, opacity: 0.3, mb: 2 }} />
+    <Typography variant="h6">No contributor data available</Typography>
+    <Typography variant="body2" color="textSecondary">
+      This could be because there are no PRs in the selected time range,
+      or all contributors were identified as bots.
+    </Typography>
+  </FlexBox>
+);
 
 export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> = ({
   contributors,
-  isLoading = false
+  isLoading = false,
+  lastUpdated = null,
+  hasGithub = false
 }) => {
+  const theme = useTheme();
   const [sortField, setSortField] = useState<SortField>('contributions');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  const handleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
+  const handleSort = useCallback((field: SortField) => {
+    setSortField(prevField => {
+      if (prevField === field) {
+        setSortDirection(prevDirection => prevDirection === 'asc' ? 'desc' : 'asc');
+        return field;
+      }
       setSortDirection('desc');
-    }
-  };
+      return field;
+    });
+  }, []);
 
   const sortedContributors = useMemo(() => {
-    if (!contributors || contributors.length === 0) return [];
-
+    if (!contributors.length) return [];
     return [...contributors].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
+      const fieldA = a[sortField];
+      const fieldB = b[sortField];
 
-      // Handle undefined values
-      if (aValue === undefined && bValue === undefined) return 0;
-      if (aValue === undefined) return 1;
-      if (bValue === undefined) return -1;
+      if (fieldA === undefined && fieldB === undefined) return 0;
+      if (fieldA === undefined) return 1;
+      if (fieldB === undefined) return -1;
 
-      // Compare based on sort direction
-      const compareResult = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      return sortDirection === 'asc' ? compareResult : -compareResult;
+      // For string fields
+      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+        return sortDirection === 'asc'
+          ? fieldA.localeCompare(fieldB)
+          : fieldB.localeCompare(fieldA);
+      }
+
+      // For numeric fields
+      return sortDirection === 'asc'
+        ? Number(fieldA) - Number(fieldB)
+        : Number(fieldB) - Number(fieldA);
     });
   }, [contributors, sortField, sortDirection]);
 
   if (isLoading) {
     return (
-      <FlexBox centered fullWidth p={4}>
+      <FlexBox col alignCenter justifyCenter p={4}>
         <CircularProgress size={40} />
-        <Line ml={2}>Loading contributor data...</Line>
+        <Typography variant="body2" sx={{ mt: 2 }}>
+          Loading contributor data...
+        </Typography>
       </FlexBox>
     );
   }
 
-  if (!contributors || contributors.length === 0) {
-    return (
-      <EmptyState>
-        <Line>No contributor data available.</Line>
-      </EmptyState>
-    );
+  if (!contributors.length) {
+    return <NoContributorsMessage />;
   }
 
   return (
-    <FlexBox col gap={2} fullWidth>
-      <Line white huge bold>
-        Contributors Performance
-      </Line>
-      <TableContainer component={Paper}>
-        <Table sx={{ minWidth: 650 }} aria-label="contributors table">
-          <TableHead>
+    <FlexBox col gap={1}>
+      {lastUpdated && (
+        <Typography variant="caption" color="textSecondary" sx={{ mb: 1 }}>
+          Last updated: {format(lastUpdated, 'PPpp')}
+        </Typography>
+      )}
+      
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
+          boxShadow: theme.shadows[1],
+          borderRadius: 1,
+          overflow: 'hidden',
+          border: `1px solid ${theme.colors.secondary.lighter}`
+        }}
+      >
+        <Table size="medium">
+          <TableHead sx={{ backgroundColor: alpha(theme.colors.primary.main, 0.08) }}>
             <TableRow>
               <TableCell>
                 <TableSortLabel
@@ -128,7 +167,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'name' ? sortDirection : 'asc'}
                   onClick={() => handleSort('name')}
                 >
-                  Contributor
+                  <FlexBox alignCenter gap={1}>
+                    <Person fontSize="small" />
+                    Contributor
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -137,7 +179,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'contributions' ? sortDirection : 'asc'}
                   onClick={() => handleSort('contributions')}
                 >
-                  Contributions
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <Timeline fontSize="small" />
+                    Commits
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -146,7 +191,34 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'prs' ? sortDirection : 'asc'}
                   onClick={() => handleSort('prs')}
                 >
-                  PRs
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <Code fontSize="small" />
+                    PRs
+                  </FlexBox>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right">
+                <TableSortLabel
+                  active={sortField === 'additions'}
+                  direction={sortField === 'additions' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('additions')}
+                >
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <ArrowUpward fontSize="small" color="success" />
+                    Additions
+                  </FlexBox>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right">
+                <TableSortLabel
+                  active={sortField === 'deletions'}
+                  direction={sortField === 'deletions' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('deletions')}
+                >
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <ArrowDownward fontSize="small" color="error" />
+                    Deletions
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -155,7 +227,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'deploymentCount' ? sortDirection : 'asc'}
                   onClick={() => handleSort('deploymentCount')}
                 >
-                  Deployments
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <CloudUpload fontSize="small" />
+                    Deployments
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -164,7 +239,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'successfulDeployments' ? sortDirection : 'asc'}
                   onClick={() => handleSort('successfulDeployments')}
                 >
-                  Success Rate
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <CheckCircle fontSize="small" color="success" />
+                    Success Rate
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -173,7 +251,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'incidentCount' ? sortDirection : 'asc'}
                   onClick={() => handleSort('incidentCount')}
                 >
-                  Incidents
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <BugReport fontSize="small" />
+                    Incidents
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -182,7 +263,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'leadTime' ? sortDirection : 'asc'}
                   onClick={() => handleSort('leadTime')}
                 >
-                  Avg. Lead Time
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <AccessTime fontSize="small" />
+                    Avg. Lead Time
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -191,7 +275,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'mergeTime' ? sortDirection : 'asc'}
                   onClick={() => handleSort('mergeTime')}
                 >
-                  Avg. Merge Time
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <AccessTime fontSize="small" />
+                    Avg. Merge Time
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">
@@ -200,7 +287,10 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   direction={sortField === 'reworkTime' ? sortDirection : 'asc'}
                   onClick={() => handleSort('reworkTime')}
                 >
-                  Avg. Rework Time
+                  <FlexBox alignCenter gap={1} justifyEnd>
+                    <Build fontSize="small" />
+                    Avg. Rework Time
+                  </FlexBox>
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right">Activity Level</TableCell>
@@ -208,22 +298,121 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
           </TableHead>
           <TableBody>
             {sortedContributors.map((contributor) => (
-              <TableRow key={contributor.name}>
+              <TableRow key={contributor.username} hover>
                 <TableCell component="th" scope="row">
-                  {contributor.name}
+                  <FlexBox alignCenter gap={1}>
+                    <Tooltip 
+                      title={
+                        <Box>
+                          <Typography variant="body2">@{contributor.username}</Typography>
+                          {contributor.name !== contributor.username && (
+                            <Typography variant="caption">{contributor.name}</Typography>
+                          )}
+                        </Box>
+                      }
+                    >
+                      <Box component="span">
+                        {hasGithub ? (
+                          <Avatar 
+                            src={contributor.avatarUrl || getGHAvatar(contributor.username)}
+                            alt={contributor.name} 
+                            sx={{ width: 32, height: 32 }}
+                          />
+                        ) : (
+                          <SimpleAvatar
+                            name={contributor.name || contributor.username}
+                            size={theme.spacing(4)}
+                            url={contributor.avatarUrl || getGHAvatar(contributor.username)}
+                          />
+                        )}
+                      </Box>
+                    </Tooltip>
+                    <Line bold>{contributor.name}</Line>
+                  </FlexBox>
                 </TableCell>
-                <TableCell align="right">{contributor.contributions}</TableCell>
-                <TableCell align="right">{contributor.prs || 0}</TableCell>
-                <TableCell align="right">{contributor.deploymentCount || 0}</TableCell>
                 <TableCell align="right">
-                  {contributor.deploymentCount
-                    ? `${Math.round((contributor.successfulDeployments || 0) / contributor.deploymentCount * 100)}%`
-                    : 'N/A'}
+                  <Tooltip title={`${contributor.contributions} total commits`}>
+                    <Line big bold white>
+                      {contributor.contributions}
+                    </Line>
+                  </Tooltip>
                 </TableCell>
-                <TableCell align="right">{contributor.incidentCount || 0}</TableCell>
-                <TableCell align="right">{contributor.leadTime}</TableCell>
-                <TableCell align="right">{contributor.mergeTime}</TableCell>
-                <TableCell align="right">{contributor.reworkTime}</TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`${contributor.prs} pull requests`}>
+                    <Line big bold white>
+                      {contributor.prs}
+                    </Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`${contributor.additions} lines added`}>
+                    <Line big bold color="success.main">
+                      +{contributor.additions}
+                    </Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`${contributor.deletions} lines removed`}>
+                    <Line big bold color="error.main">
+                      -{contributor.deletions}
+                    </Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`${contributor.deploymentCount} total deployments`}>
+                    <Line big bold white>
+                      {contributor.deploymentCount}
+                    </Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  {contributor.deploymentCount ? (
+                    <Tooltip 
+                      title={`${contributor.successfulDeployments} successful, ${contributor.failedDeployments} failed deployments`}
+                    >
+                      <FlexBox justifyEnd>
+                        <Chip 
+                          size="small" 
+                          label={`${Math.round((contributor.successfulDeployments / contributor.deploymentCount) * 100)}%`}
+                          color={contributor.successfulDeployments / contributor.deploymentCount > 0.8 ? "success" : "warning"}
+                        />
+                      </FlexBox>
+                    </Tooltip>
+                  ) : (
+                    <Line>N/A</Line>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  {contributor.incidentCount > 0 ? (
+                    <Tooltip title={`${contributor.incidentCount} incidents assigned`}>
+                      <FlexBox justifyEnd>
+                        <Chip 
+                          size="small" 
+                          label={contributor.incidentCount}
+                          color={contributor.incidentCount > 5 ? "error" : "warning"}
+                          icon={<BugReport />}
+                        />
+                      </FlexBox>
+                    </Tooltip>
+                  ) : (
+                    <Line>0</Line>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`Average lead time: ${contributor.leadTimeFormatted || 'N/A'}`}>
+                    <Line>{contributor.leadTimeFormatted || 'N/A'}</Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`Average merge time: ${contributor.mergeTimeFormatted || 'N/A'}`}>
+                    <Line>{contributor.mergeTimeFormatted || 'N/A'}</Line>
+                  </Tooltip>
+                </TableCell>
+                <TableCell align="right">
+                  <Tooltip title={`Average rework time: ${contributor.reworkTimeFormatted || 'N/A'}`}>
+                    <Line>{contributor.reworkTimeFormatted || 'N/A'}</Line>
+                  </Tooltip>
+                </TableCell>
                 <TableCell align="right">
                   <ActivityChip contributions={contributor.contributions} />
                 </TableCell>
