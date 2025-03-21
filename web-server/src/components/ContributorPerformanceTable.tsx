@@ -20,11 +20,7 @@ import {
   Code,
   Timeline,
   AccessTime,
-  Build,
-  BugReport,
-  CloudUpload,
   CheckCircle,
-  Error as ErrorIcon,
   ArrowUpward,
   ArrowDownward,
   GitHub
@@ -252,20 +248,6 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
               </TableCell>
               <TableCell align="right">
                 <TableSortLabel
-                  active={sortField === 'deploymentCount'}
-                  direction={sortField === 'deploymentCount' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('deploymentCount')}
-                >
-                  <Tooltip title="Sort by number of deployments">
-                    <FlexBox alignCenter gap={1} justifyEnd>
-                      <CloudUpload fontSize="small" />
-                      Deployments
-                    </FlexBox>
-                  </Tooltip>
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right">
-                <TableSortLabel
                   active={sortField === 'successfulDeployments'}
                   direction={sortField === 'successfulDeployments' ? sortDirection : 'asc'}
                   onClick={() => handleSort('successfulDeployments')}
@@ -280,20 +262,6 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
               </TableCell>
               <TableCell align="right">
                 <TableSortLabel
-                  active={sortField === 'incidentCount'}
-                  direction={sortField === 'incidentCount' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('incidentCount')}
-                >
-                  <Tooltip title="Sort by number of incidents">
-                    <FlexBox alignCenter gap={1} justifyEnd>
-                      <BugReport fontSize="small" />
-                      Incidents
-                    </FlexBox>
-                  </Tooltip>
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right">
-                <TableSortLabel
                   active={sortField === 'leadTime'}
                   direction={sortField === 'leadTime' ? sortDirection : 'asc'}
                   onClick={() => handleSort('leadTime')}
@@ -302,34 +270,6 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                     <FlexBox alignCenter gap={1} justifyEnd>
                       <AccessTime fontSize="small" />
                       Avg. Lead Time
-                    </FlexBox>
-                  </Tooltip>
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right">
-                <TableSortLabel
-                  active={sortField === 'mergeTime'}
-                  direction={sortField === 'mergeTime' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('mergeTime')}
-                >
-                  <Tooltip title="Sort by average merge time (time from PR opened to merged)">
-                    <FlexBox alignCenter gap={1} justifyEnd>
-                      <AccessTime fontSize="small" />
-                      Avg. Merge Time
-                    </FlexBox>
-                  </Tooltip>
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right">
-                <TableSortLabel
-                  active={sortField === 'reworkTime'}
-                  direction={sortField === 'reworkTime' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('reworkTime')}
-                >
-                  <Tooltip title="Sort by average rework time (time spent making changes after code review)">
-                    <FlexBox alignCenter gap={1} justifyEnd>
-                      <Build fontSize="small" />
-                      Avg. Rework Time
                     </FlexBox>
                   </Tooltip>
                 </TableSortLabel>
@@ -418,13 +358,6 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">
-                  <Tooltip title={`${contributor.deploymentCount} total deployments`}>
-                    <Line big bold white>
-                      {contributor.deploymentCount}
-                    </Line>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="right">
                   {contributor.deploymentCount ? (
                     <Tooltip 
                       title={`${contributor.successfulDeployments} successful, ${contributor.failedDeployments} failed deployments`}
@@ -442,36 +375,8 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   )}
                 </TableCell>
                 <TableCell align="right">
-                  {contributor.incidentCount > 0 ? (
-                    <Tooltip title={`${contributor.incidentCount} incidents associated with this contributor's code`}>
-                      <FlexBox justifyEnd>
-                        <Chip 
-                          size="small" 
-                          label={contributor.incidentCount}
-                          color={contributor.incidentCount > 5 ? "error" : "warning"}
-                          icon={<BugReport />}
-                        />
-                      </FlexBox>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="No incidents associated with this contributor's code">
-                      <Line>0</Line>
-                    </Tooltip>
-                  )}
-                </TableCell>
-                <TableCell align="right">
                   <Tooltip title={`Average lead time: ${contributor.leadTimeFormatted || 'N/A'}`}>
                     <Line>{contributor.leadTimeFormatted || 'N/A'}</Line>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title={`Average merge time: ${contributor.mergeTimeFormatted || 'N/A'}`}>
-                    <Line>{contributor.mergeTimeFormatted || 'N/A'}</Line>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title={`Average rework time: ${contributor.reworkTimeFormatted || 'N/A'}`}>
-                    <Line>{contributor.reworkTimeFormatted || 'N/A'}</Line>
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">
