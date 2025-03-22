@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useCallback } from 'react';
 import { Box, Card, IconButton, Tooltip, useTheme } from '@mui/material';
 import { Refresh, Info } from '@mui/icons-material';
 
@@ -8,8 +8,12 @@ import { FlexBox } from '@/components/FlexBox';
 import { Line } from '@/components/Text';
 
 export const ContributorPerformanceSection: FC = () => {
-  const { contributors, isLoading, error, lastUpdated, hasGithub } = useContributorData();
+  const { contributors, isLoading, error, lastUpdated, hasGithub, refreshData } = useContributorData();
   const theme = useTheme();
+  
+  const handleRefresh = useCallback(() => {
+    refreshData();
+  }, [refreshData]);
 
   return (
     <Box id="contributor-performance-section">
@@ -24,21 +28,15 @@ export const ContributorPerformanceSection: FC = () => {
             </Tooltip>
           </FlexBox>
           
-          {!isLoading && (
-            <Tooltip title="Refresh contributor data">
-              <IconButton 
-                size="small" 
-                onClick={() => {
-                  // Force a refresh by setting window.location.reload(false)
-                  // This is a simple approach - in a real implementation, 
-                  // you'd want to refetch just the contributor data
-                  window.location.reload();
-                }}
-              >
-                <Refresh fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Tooltip title="Refresh contributor data">
+            <IconButton 
+              size="small" 
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <Refresh fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </FlexBox>
         
         <ContributorPerformanceTable 

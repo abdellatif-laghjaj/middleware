@@ -97,6 +97,14 @@ class ExternalIntegrationsService:
             raise e
 
         return projects
+        
+    def get_repo_contributors(self, org_name: str, repo_name: str):
+        github_api_service = GithubApiService(self.access_token)
+        try:
+            contributors = github_api_service.get_contributors(org_name, repo_name)
+            return contributors
+        except GithubException as e:
+            raise e
 
 
 def get_external_integrations_service(
