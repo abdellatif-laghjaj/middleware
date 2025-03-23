@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSelector } from '@/store';
 import { PR } from '@/types/resources';
 import { useAuth } from '@/hooks/useAuth';
@@ -65,10 +65,11 @@ interface ContributorResponse {
 }
 
 export const useContributorData = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [contributors, setContributors] = useState<ContributorData[]>([]);
+  const hasFetchedRef = useRef(false);
   
   // Get deployments and incidents from the store for additional metrics
   const deployments = useSelector(state => state.doraMetrics.all_deployments || []);
@@ -78,7 +79,12 @@ export const useContributorData = () => {
   const { hasGithub } = useAuth();
   
   // Get date range from the store
-  const dates = useSelector(state => state.doraMetrics.date_range);
+  const from_date = new Date(0).toISOString().split('T')[0]; // Default to epoch start
+  const to_date = new Date().toISOString().split('T')[0]; // Default to today
+  const dates = {
+    start: from_date,
+    end: to_date
+  }
 
   // Create a cache key based on the data that would cause a refresh
   const cacheKey = useMemo(() => {
@@ -265,8 +271,17 @@ export const useContributorData = () => {
 
   // Fetch contributors from the API on initial load and when dependencies change
   useEffect(() => {
-    fetchContributorData();
-  }, [fetchContributorData, cacheKey]);
+    // Only fetch if we haven't fetched before and we're not currently loading
+    if (!hasFetchedRef.current && !isLoading) {
+      hasFetchedRef.current = true;
+      fetchContributorData();
+    }
+  }, [cacheKey, isLoading]);
+  
+  // Reset the fetch flag when cache key changes
+  useEffect(() => {
+    hasFetchedRef.current = false;
+  }, [cacheKey]);
 
   return {
     contributors,
