@@ -204,9 +204,14 @@ export const useContributorData = () => {
       }
     })
       .then(response => {
+        // Track usernames to ensure uniqueness
+        const processedUsernames = new Set<string>();
+        
         // Map the API response to our ContributorData format
         const mappedContributors = response.contributors.map(contributor => {
           const username = contributor.login;
+          processedUsernames.add(username);
+          
           const prData = prDataByAuthor.get(username);
           const deploymentData = deploymentsByActor.get(username);
           const incidentCount = incidentsByAssignee.get(username) || 0;
@@ -245,11 +250,66 @@ export const useContributorData = () => {
           return contributorData;
         });
         
-        // Filter out bot accounts
-        const filteredContributors = mappedContributors.filter(c => !c.isBot);
+        // Add PR authors who aren't already in the contributor list
+        const prAuthors: ContributorData[] = [];
         
-        // Sort by contributions (descending)
-        const sortedContributors = filteredContributors.sort((a, b) => b.contributions - a.contributions);
+        prDataByAuthor.forEach((prData, username) => {
+          // Skip if already processed or is a bot
+          if (processedUsernames.has(username) || isBot(username)) return;
+          
+          // Add this PR author as a contributor
+          processedUsernames.add(username);
+          
+          const deploymentData = deploymentsByActor.get(username);
+          const incidentCount = incidentsByAssignee.get(username) || 0;
+          
+          const contributorData: ContributorData = {
+            name: username, // Use username as name
+            username,
+            avatarUrl: undefined, // No avatar URL available for PR-only authors
+            contributions: 0, // No GitHub contributions count
+            prs: prData.prs,
+            deploymentCount: deploymentData?.deploymentCount || 0,
+            successfulDeployments: deploymentData?.successfulDeployments || 0,
+            failedDeployments: deploymentData?.failedDeployments || 0,
+            incidentCount,
+            additions: prData.additions,
+            deletions: prData.deletions,
+            isBot: false // Already filtered in prDataByAuthor
+          };
+          
+          // Add formatted time metrics if available
+          if (prData.leadTime) {
+            contributorData.leadTime = prData.leadTime;
+            contributorData.leadTimeFormatted = getDurationString(prData.leadTime);
+          }
+          
+          if (prData.mergeTime) {
+            contributorData.mergeTime = prData.mergeTime;
+            contributorData.mergeTimeFormatted = getDurationString(prData.mergeTime);
+          }
+          
+          if (prData.reworkTime) {
+            contributorData.reworkTime = prData.reworkTime;
+            contributorData.reworkTimeFormatted = getDurationString(prData.reworkTime);
+          }
+          
+          prAuthors.push(contributorData);
+        });
+        
+        // Combine GitHub contributors with PR authors
+        const allContributors = [...mappedContributors, ...prAuthors];
+        
+        // Filter out bot accounts
+        const filteredContributors = allContributors.filter(c => !c.isBot);
+        
+        // Sort by contributions (descending), then by PRs if contributions are equal
+        const sortedContributors = filteredContributors.sort((a, b) => {
+          if (b.contributions !== a.contributions) {
+            return b.contributions - a.contributions;
+          }
+          return b.prs - a.prs;
+        });
         
         setContributors(sortedContributors);
         setLastUpdated(new Date());
