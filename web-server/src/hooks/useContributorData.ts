@@ -97,6 +97,7 @@ export const useContributorData = () => {
       prs: number;
       additions: number;
       deletions: number;
+      commits: number; // Track total commits from PRs
       leadTime: number;
       mergeTime: number;
       reworkTime: number;
@@ -113,6 +114,7 @@ export const useContributorData = () => {
           prs: 0,
           additions: 0,
           deletions: 0,
+          commits: 0,
           leadTime: 0,
           mergeTime: 0,
           reworkTime: 0
@@ -123,6 +125,7 @@ export const useContributorData = () => {
       data.prs += 1;
       data.additions += pr.additions || 0;
       data.deletions += pr.deletions || 0;
+      data.commits += pr.commits || 0; // Add commits from each PR
       
       // Track lead time, merge time, and rework time
       if (pr.lead_time) {
@@ -220,7 +223,7 @@ export const useContributorData = () => {
             name: username, // Use login as name if no PR author data
             username,
             avatarUrl: contributor.avatar_url,
-            contributions: contributor.contributions,
+            contributions: contributor.contributions, // GitHub API contributions count
             prs: prData?.prs || 0,
             deploymentCount: deploymentData?.deploymentCount || 0,
             successfulDeployments: deploymentData?.successfulDeployments || 0,
@@ -267,7 +270,7 @@ export const useContributorData = () => {
             name: username, // Use username as name
             username,
             avatarUrl: undefined, // No avatar URL available for PR-only authors
-            contributions: 0, // No GitHub contributions count
+            contributions: prData.commits || 0, // Use commit count from PRs for PR-only authors
             prs: prData.prs,
             deploymentCount: deploymentData?.deploymentCount || 0,
             successfulDeployments: deploymentData?.successfulDeployments || 0,

@@ -88,6 +88,7 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
   lastUpdated = null,
   hasGithub = false
 }) => {
+  console.log(contributors)
   const theme = useTheme();
   const [sortField, setSortField] = useState<SortField>('contributions');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');

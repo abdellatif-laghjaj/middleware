@@ -111,7 +111,7 @@ export const ContributorDetailsOverlay: FC<ContributorDetailsProps> = ({
     return recentPrs.length >= olderPrs.length;
   }, [allPrs, contributor.username]);
 
-  // Chart data based on real PR history
+  // Chart data based on real PR history and commit counts
   const commitHistorySeries = useMemo(() => {
     if (!allPrs || !allPrs.length) {
       return [{
@@ -128,7 +128,7 @@ export const ContributorDetailsOverlay: FC<ContributorDetailsProps> = ({
     const commitData = Array(12).fill(0);
     const now = new Date();
     
-    // Count PRs per week for the last 12 weeks
+    // Count actual commits per week for the last 12 weeks
     allPrs.forEach(pr => {
       if (pr.author?.username === contributor.username) {
         const prDate = new Date(pr.created_at);
@@ -136,7 +136,9 @@ export const ContributorDetailsOverlay: FC<ContributorDetailsProps> = ({
         
         if (diffWeeks >= 0 && diffWeeks < 12) {
           // We're counting backwards, so week 0 is the most recent
-          commitData[11 - diffWeeks] += 1;
+          // Use the actual commit count from the PR if available
+          const commitCount = pr.commits || 1; // Default to 1 if commits not available
+          commitData[11 - diffWeeks] += commitCount;
         }
       }
     });
@@ -272,8 +274,12 @@ const codeChangesSeries = useMemo(() => {
     
     if (weekDiff >= 0 && weekDiff < weeks) {
       const weekIndex = weeks - 1 - weekDiff;
-      additionsByWeek[weekIndex] += (pr.additions || 0);
-      deletionsByWeek[weekIndex] += (pr.deletions || 0);
+      // Ensure we're using the actual additions/deletions from the PR data
+      const additions = typeof pr.additions === 'number' ? pr.additions : 0;
+      const deletions = typeof pr.deletions === 'number' ? pr.deletions : 0;
+      
+      additionsByWeek[weekIndex] += additions;
+      deletionsByWeek[weekIndex] += deletions;
     }
   });
   
