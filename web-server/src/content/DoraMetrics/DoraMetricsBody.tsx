@@ -1,10 +1,9 @@
 import { AutoGraphRounded, PeopleAltRounded } from '@mui/icons-material';
-import { Grid, Divider, Button } from '@mui/material';
+import { Grid, Divider, Button, Typography } from '@mui/material';
 import Link from 'next/link';
 import { FC, useEffect, useMemo } from 'react';
 
 import { AiButton } from '@/components/AiButton';
-import { ContributorPerformanceTable } from '@/components/ContributorPerformanceTable';
 import { DoraMetricsConfigurationSettings } from '@/components/DoraMetricsConfigurationSettings';
 import { DoraScoreV2 } from '@/components/DoraScoreV2';
 import { EmptyState } from '@/components/EmptyState';
@@ -18,7 +17,6 @@ import { ROUTES } from '@/constants/routes';
 import { FetchState } from '@/constants/ui-states';
 import { useDoraStats } from '@/content/DoraMetrics/DoraCards/sharedHooks';
 import { useAuth } from '@/hooks/useAuth';
-import { useContributorData } from '@/hooks/useContributorData';
 import { useBoolState } from '@/hooks/useEasyState';
 import { usePageRefreshCallback } from '@/hooks/usePageRefreshCallback';
 import {
@@ -33,10 +31,9 @@ import { getRandomLoadMsg } from '@/utils/loading-messages';
 import { ClassificationPills } from './ClassificationPills';
 import { ChangeFailureRateCard } from './DoraCards/ChangeFailureRateCard';
 import { ChangeTimeCard } from './DoraCards/ChangeTimeCard';
-import { ContributorPerformanceSection } from './ContributorPerformanceSection';
+import { WeeklyDeliveryVolumeCard } from './DoraCards/WeeklyDeliveryVolumeCard';
 import { MeanTimeToRestoreCard } from './DoraCards/MeanTimeToRestoreCard';
 import { DataStillSyncing } from './DoraCards/SkeletalCard';
-import { WeeklyDeliveryVolumeCard } from './DoraCards/WeeklyDeliveryVolumeCard';
 
 export const DoraMetricsBody = () => {
   const dispatch = useDispatch();
@@ -125,6 +122,16 @@ export const DoraMetricsBody = () => {
       <FlexBox gap={2}>
         {!!stats.avg && <DoraScoreV2 {...stats} />}
         <FlexBox fit gap1 ml="auto">
+          <Link href={ROUTES.CONTRIBUTORS.PATH} passHref>
+            <Button
+              size="small"
+              startIcon={<PeopleAltRounded />}
+              variant="outlined"
+              color="primary"
+            >
+              Contributors
+            </Button>
+          </Link>
           <AiButton
             size="small"
             startIcon={<AutoGraphRounded />}
@@ -160,14 +167,16 @@ export const DoraMetricsBody = () => {
         </Grid>
       </Grid>
       <Divider />
-      <FlexBox col gap2 mt={2}>
-        <FlexBox gap={2} alignCenter>
-          <PeopleAltRounded />
-          <Line white huge bold>
-            Contributor Performance
-          </Line>
-        </FlexBox>
-        <ContributorPerformanceSection />
+      <FlexBox col gap2 mt={2} mb={2}>
+        <Typography variant="body2" color="textSecondary">
+          Looking for contributor performance? It has been moved to the dedicated{' '}
+          <Link href={ROUTES.CONTRIBUTORS.PATH} passHref>
+            <Typography component="span" color="primary" sx={{ cursor: 'pointer', textDecoration: 'underline' }}>
+              Contributors page
+            </Typography>
+          </Link>
+          {' '}for better visibility and analysis.
+        </Typography>
       </FlexBox>
       <Divider />
       <FlexBox col gap1 flexGrow={1}>
@@ -300,7 +309,7 @@ export const LoaderCore: FC<{
         <Line color={'#1AE579'} medium big>
           Calculating Dora
         </Line>
-        <Line>We’re processing your data, it usually takes ~ 5 mins</Line>
+        <Line>We're processing your data, it usually takes ~ 5 mins</Line>
       </FlexBox>
       <FlexBox p={2} flex1 />
     </FlexBox>

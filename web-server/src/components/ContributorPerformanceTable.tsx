@@ -25,7 +25,7 @@ import {
   ArrowDownward,
   GitHub
 } from '@mui/icons-material';
-import { FC, useState, useCallback, useMemo } from 'react';
+import { FC, useState, useCallback, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { alpha } from '@mui/material/styles';
 
@@ -35,6 +35,8 @@ import { ContributorData } from '@/hooks/useContributorData';
 import { SimpleAvatar } from '@/components/SimpleAvatar';
 import { getGHAvatar } from '@/utils/user';
 import { useOverlayPage } from '@/components/OverlayPageContext';
+import { useSingleTeamConfig } from '@/hooks/useStateTeamConfig';
+import { useSelector } from '@/store';
 
 type SortDirection = 'asc' | 'desc';
 type SortField = keyof ContributorData | '';
@@ -93,6 +95,13 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
   const [sortField, setSortField] = useState<SortField>('contributions');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { addPage } = useOverlayPage();
+  const { singleTeamId } = useSingleTeamConfig();
+  const teamName = useSelector(s => s.team.teams?.find(team => team.id === singleTeamId)?.name || 'Current Team');
+  
+  useEffect(() => {
+    setSortField('contributions');
+    setSortDirection('desc');
+  }, [singleTeamId]);
 
   const handleSort = useCallback((field: SortField) => {
     setSortField(prevField => {
@@ -147,18 +156,31 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
       <FlexBox col alignCenter justifyCenter p={4}>
         <CircularProgress size={40} />
         <Typography variant="body2" sx={{ mt: 2 }}>
-          Loading contributor data...
+          Loading contributor data for {teamName}...
         </Typography>
       </FlexBox>
     );
   }
 
   if (!contributors.length) {
-    return <NoContributorsMessage />;
+    return (
+      <FlexBox col alignCenter justifyCenter p={4}>
+        <GitHub sx={{ fontSize: 60, opacity: 0.3, mb: 2 }} />
+        <Typography variant="h6">No contributor data available for {teamName}</Typography>
+        <Typography variant="body2" color="textSecondary">
+          This could be because there are no PRs in the selected time range,
+          or all contributors were identified as bots.
+        </Typography>
+      </FlexBox>
+    );
   }
 
   return (
     <FlexBox col gap={1}>
+      <Typography variant="subtitle2" color="primary" sx={{ mb: 1 }}>
+        Team: {teamName}
+      </Typography>
+      
       {lastUpdated && (
         <Typography variant="caption" color="textSecondary" sx={{ mb: 1 }}>
           Last updated: {format(lastUpdated, 'PPpp')}

@@ -3,7 +3,8 @@ import {
   GroupsTwoTone,
   Analytics,
   Settings,
-  Dns
+  Dns,
+  PeopleAltRounded
 } from '@mui/icons-material';
 
 import { ROUTES } from '@/constants/routes';
@@ -38,6 +39,7 @@ export interface MenuItems {
 
 export enum SideBarItems {
   DORA_METRICS = 'DORA Metrics',
+  CONTRIBUTORS = 'Contributors',
   MANAGE_TEAMS = 'Manage Teams',
   MANAGE_INTEGRATIONS = 'Manage Integrations',
   SERVER_ADMIN = 'Server Admin'
@@ -51,6 +53,11 @@ const menuItems = (): MenuItems[] => [
         name: 'DORA Metrics',
         icon: Analytics,
         link: ROUTES.DORA_METRICS.PATH
+      },
+      {
+        name: 'Contributors',
+        icon: PeopleAltRounded,
+        link: ROUTES.CONTRIBUTORS.PATH
       },
       {
         name: 'Manage Teams',
