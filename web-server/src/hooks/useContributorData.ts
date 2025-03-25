@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useSelector, useDispatch } from '@/store';
+import { useEffect, useMemo, useState } from 'react';
+import { useSelector } from '@/store';
 import { PR } from '@/types/resources';
 import { useAuth } from '@/hooks/useAuth';
 import { useSingleTeamConfig } from '@/hooks/useStateTeamConfig';
 import { getDurationString } from '@/utils/date';
-import { fetchTeamDoraMetrics } from '@/slices/dora_metrics';
-import { FetchState } from '@/constants/ui-states';
 
 export interface ContributorData {
   name: string;
@@ -53,45 +51,19 @@ export const useContributorData = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const dispatch = useDispatch();
-  const previousTeamId = useRef<string | null>(null);
   
   // Get all PRs from the store - similar to how TeamInsightsBody does it
   const prs = useSelector(state => state.doraMetrics.summary_prs || []);
   const deployments = useSelector(state => state.doraMetrics.all_deployments || []);
   const incidents = useSelector(state => state.doraMetrics.all_incidents || []);
-  const metricsRequestState = useSelector(s => s.doraMetrics.requests?.metrics_summary);
-  const { singleTeamId, dates } = useSingleTeamConfig();
-  const { hasGithub, orgId } = useAuth();
+  const { singleTeamId } = useSingleTeamConfig();
+  const { hasGithub } = useAuth();
 
   // Create a cache key based on the data that would cause a refresh
   const cacheKey = useMemo(() => {
     return `contributors-${singleTeamId}-${prs.length}-${deployments.length}-${incidents.length}`;
   }, [singleTeamId, prs.length, deployments.length, incidents.length]);
   
-  // Function to refresh the data - simplified to match DoraMetricsBody pattern
-  const refresh = useCallback(() => {
-    if (singleTeamId) {
-      setIsLoading(true);
-      dispatch(
-        fetchTeamDoraMetrics({
-          orgId,
-          teamId: singleTeamId,
-          fromDate: dates.start,
-          toDate: dates.end
-        })
-      );
-    }
-  }, [singleTeamId, orgId, dates, dispatch]);
-
-  // Monitor team changes
-  useEffect(() => {
-    if (singleTeamId !== previousTeamId.current) {
-      previousTeamId.current = singleTeamId;
-      setIsLoading(true);
-    }
-  }, [singleTeamId]);
-
   // Create a mapping of deployment IDs to success/failure status
   const deploymentsMap = useMemo(() => {
     const map = new Map();
@@ -206,29 +178,21 @@ export const useContributorData = () => {
 
   // Handle loading state and updates separately in useEffect
   useEffect(() => {
-    // More explicit loading state management
-    if (metricsRequestState === FetchState.REQUEST) {
-      setIsLoading(true);
-      return;
+    if (prs.length === 0) {
+      if (singleTeamId) {
+        setIsLoading(true);
+      }
+    } else {
+      setIsLoading(false);
+      setLastUpdated(new Date());
     }
-    
-    // Check if we have data for the current team
-    if (prs.length === 0 && singleTeamId) {
-      setIsLoading(true);
-      return;
-    }
-    
-    // Successful data load
-    setIsLoading(false);
-    setLastUpdated(new Date());
-  }, [prs.length, singleTeamId, metricsRequestState]);
+  }, [prs.length, singleTeamId, cacheKey]);
 
   return {
     contributors,
     isLoading,
     error,
     lastUpdated,
-    hasGithub,
-    refresh
+    hasGithub
   };
 };

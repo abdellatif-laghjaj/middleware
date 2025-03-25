@@ -28,6 +28,17 @@ export const usePageRefreshCallback = () => {
             ...branchPayloadForPrFilters
           })
         );
+    case ROUTES.CONTRIBUTORS.PATH:
+      return () =>
+        dispatch(
+          fetchTeamDoraMetrics({
+            orgId,
+            teamId: singleTeamId,
+            fromDate: dates.start,
+            toDate: dates.end,
+            ...branchPayloadForPrFilters
+          })
+        );
     default:
       return () => {};
   }
