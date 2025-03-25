@@ -10,11 +10,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSelector } from '@/store';
 import { PageLayout } from '@/types/resources';
 import { ContributorsPageContent } from '@/content/Contributors/ContributorsPageContent';
+import { RootState } from '@/store/types';
 
 function Page() {
   useRedirectWithSession();
   const isLoading = useSelector(
-    (s) => s.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
+    (s: RootState) => s.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
   );
   const { integrationList } = useAuth();
 

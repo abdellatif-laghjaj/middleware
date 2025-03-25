@@ -1,5 +1,5 @@
 import { PeopleAltRounded } from '@mui/icons-material';
-import { Divider } from '@mui/material';
+import { Divider, Card } from '@mui/material';
 import { FC, useEffect } from 'react';
 
 import { FixedContentRefreshLoader } from '@/components/FixedContentRefreshLoader/FixedContentRefreshLoader';
@@ -16,8 +16,10 @@ import {
 import { fetchTeamDoraMetrics } from '@/slices/dora_metrics';
 import { useDispatch, useSelector } from '@/store';
 import { getRandomLoadMsg } from '@/utils/loading-messages';
+import { RootState } from '@/store/types';
 
 import { ContributorPerformanceSection } from '../DoraMetrics/ContributorPerformanceSection';
+import { ContributorStatsCards } from './ContributorStatsCards';
 
 export const ContributorsPageContent: FC = () => {
   const dispatch = useDispatch();
@@ -25,13 +27,13 @@ export const ContributorsPageContent: FC = () => {
   const { singleTeamId, dates } = useSingleTeamConfig();
   const branchPayloadForPrFilters = useBranchesForPrFilters();
   const isLoading = useSelector(
-    (s) => s.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
+    (s: RootState) => s.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
   );
   const isErrored = useSelector(
-    (s) => s.doraMetrics.requests?.metrics_summary === FetchState.FAILURE
+    (s: RootState) => s.doraMetrics.requests?.metrics_summary === FetchState.FAILURE
   );
 
-  const firstLoadDone = useSelector((s) => s.doraMetrics.firstLoadDone);
+  const firstLoadDone = useSelector((s: RootState) => s.doraMetrics.firstLoadDone);
 
   useEffect(() => {
     dispatch(
@@ -62,17 +64,28 @@ export const ContributorsPageContent: FC = () => {
   if (!firstLoadDone) return <MiniLoader label={getRandomLoadMsg()} />;
 
   return (
-    <FlexBox col gap2>
+    <FlexBox col gap3>
       <FixedContentRefreshLoader show={isLoading} />
-      <FlexBox col gap2 mt={2}>
-        <FlexBox gap={2} alignCenter>
-          <PeopleAltRounded />
-          <Line white huge bold>
-            Contributor Performance
-          </Line>
+      
+      {/* Statistics Cards */}
+      <Card sx={{ p: 3, borderRadius: 2 }}>
+        <FlexBox col gap={3}>
+          <FlexBox gap={2} alignCenter>
+            <Line white huge bold>
+              Contributor Statistics
+            </Line>
+          </FlexBox>
+          <ContributorStatsCards />
         </FlexBox>
+      </Card>
+      
+      <Divider />
+      
+      {/* Contributors Table */}
+      <FlexBox col gap2 mt={2}>
         <ContributorPerformanceSection />
       </FlexBox>
+      
       <Divider />
     </FlexBox>
   );

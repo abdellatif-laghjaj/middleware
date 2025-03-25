@@ -16,7 +16,7 @@ export const ContributorPerformanceSection: FC = () => {
       <Card sx={{ p: 2, borderRadius: 1, mb: 2 }}>
         <FlexBox justifyBetween alignCenter mb={2}>
           <FlexBox alignCenter gap={1}>
-            <Line big bold white>
+            <Line white huge bold>
               Contributor Insights
             </Line>
             <Tooltip title="Shows contribution metrics from all team members, aggregating work across all branches. Bot accounts are excluded.">
@@ -39,6 +39,12 @@ export const ContributorPerformanceSection: FC = () => {
               </IconButton>
             </Tooltip>
           )}
+        </FlexBox>
+
+        <FlexBox gap={1}>
+            <Line white>
+              Click on a contributor to view their individual performance metrics.
+            </Line>
         </FlexBox>
         
         <ContributorPerformanceTable 
