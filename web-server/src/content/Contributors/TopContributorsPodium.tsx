@@ -168,10 +168,10 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                   width: '30%',
                   height: placeHeights[podiumIndex],
                   mx: 0.5,
-                  bgcolor: alpha(medalColors[podiumIndex], 0.15),
+                  bgcolor: alpha(medalColors[podiumIndex], 0.4),
                   borderTopLeftRadius: 12,
                   borderTopRightRadius: 12,
-                  border: `1px solid ${alpha(medalColors[podiumIndex], 0.3)}`,
+                  border: `1px solid ${alpha(medalColors[podiumIndex], 0.6)}`,
                   borderBottom: 'none',
                   transition: 'all 0.3s ease'
                 }}
