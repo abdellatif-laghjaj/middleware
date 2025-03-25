@@ -1,5 +1,5 @@
 import { PeopleAltRounded } from '@mui/icons-material';
-import { Divider, Card } from '@mui/material';
+import { Divider, Card, Grid, Box } from '@mui/material';
 import { FC, useEffect } from 'react';
 
 import { FixedContentRefreshLoader } from '@/components/FixedContentRefreshLoader/FixedContentRefreshLoader';
@@ -17,23 +17,27 @@ import { fetchTeamDoraMetrics } from '@/slices/dora_metrics';
 import { useDispatch, useSelector } from '@/store';
 import { getRandomLoadMsg } from '@/utils/loading-messages';
 import { RootState } from '@/store/types';
+import { useContributorData } from '@/hooks/useContributorData';
 
 import { ContributorPerformanceSection } from '../DoraMetrics/ContributorPerformanceSection';
 import { ContributorStatsCards } from './ContributorStatsCards';
+import { TopContributorsPodium } from './TopContributorsPodium';
 
 export const ContributorsPageContent: FC = () => {
   const dispatch = useDispatch();
   const { orgId, integrationList } = useAuth();
   const { singleTeamId, dates } = useSingleTeamConfig();
   const branchPayloadForPrFilters = useBranchesForPrFilters();
+  const { contributors, isLoading: contributorsLoading } = useContributorData();
+  
   const isLoading = useSelector(
-    (s: RootState) => s.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
+    (state: RootState) => state.doraMetrics.requests?.metrics_summary === FetchState.REQUEST
   );
   const isErrored = useSelector(
-    (s: RootState) => s.doraMetrics.requests?.metrics_summary === FetchState.FAILURE
+    (state: RootState) => state.doraMetrics.requests?.metrics_summary === FetchState.FAILURE
   );
 
-  const firstLoadDone = useSelector((s: RootState) => s.doraMetrics.firstLoadDone);
+  const firstLoadDone = useSelector((state: RootState) => state.doraMetrics.firstLoadDone);
 
   useEffect(() => {
     dispatch(
@@ -67,17 +71,29 @@ export const ContributorsPageContent: FC = () => {
     <FlexBox col gap3>
       <FixedContentRefreshLoader show={isLoading} />
       
-      {/* Statistics Cards */}
-      <Card sx={{ p: 3, borderRadius: 2 }}>
-        <FlexBox col gap={3}>
-          <FlexBox gap={2} alignCenter>
-            <Line white huge bold>
-              Contributor Statistics
-            </Line>
-          </FlexBox>
-          <ContributorStatsCards />
-        </FlexBox>
-      </Card>
+      {/* Top section with Contributors Podium and Statistics Cards side by side */}
+      <Grid container spacing={3}>
+        {/* Top Contributors Podium */}
+        <Grid item xs={12} md={5}>
+          {contributors && contributors.length >= 3 && (
+            <TopContributorsPodium contributors={contributors} />
+          )}
+        </Grid>
+        
+        {/* Statistics Cards */}
+        <Grid item xs={12} md={7}>
+          <Card sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+            <FlexBox col gap={3}>
+              <FlexBox gap={2} alignCenter>
+                <Line white huge bold>
+                  Contributor Statistics
+                </Line>
+              </FlexBox>
+              <ContributorStatsCards />
+            </FlexBox>
+          </Card>
+        </Grid>
+      </Grid>
       
       <Divider />
       

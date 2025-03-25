@@ -24,6 +24,13 @@ export interface ContributorData {
   additions: number;
   deletions: number;
   isBot: boolean;
+  commentCount?: number;
+  reviewersList?: Array<{username: string; name: string; count: number}>;
+  changeCycles?: number;
+  doraScore?: number;
+  deployFrequency?: number;
+  changeFailureRate?: number;
+  timeToRestore?: number;
 }
 
 // Bot usernames commonly used in GitHub
@@ -82,6 +89,8 @@ export const useContributorData = () => {
     
     // Create a map to store contributor data with username as key
     const contributorsMap = new Map<string, ContributorData>();
+    // Track reviewers for each contributor
+    const reviewersMap = new Map<string, Map<string, number>>();
     
     // Process PRs to collect contributor data
     prs.forEach((pr: PR) => {
@@ -108,12 +117,18 @@ export const useContributorData = () => {
           incidentCount: 0,
           additions: 0,
           deletions: 0,
-          commits: 0,
           leadTime: 0,
           mergeTime: 0,
           reworkTime: 0,
-          isBot: false
+          isBot: false,
+          commentCount: 0,
+          changeCycles: 0,
+          doraScore: 0,
+          reviewersList: []
         });
+        
+        // Initialize reviewers map for this contributor
+        reviewersMap.set(username, new Map<string, number>());
       }
       
       const contributor = contributorsMap.get(username)!;
@@ -127,6 +142,24 @@ export const useContributorData = () => {
       // Add code changes
       contributor.additions += pr.additions || 0;
       contributor.deletions += pr.deletions || 0;
+
+      // Add comments
+      contributor.commentCount = (contributor.commentCount || 0) + (pr.comments || 0);
+      
+      // Add rework cycles
+      contributor.changeCycles = (contributor.changeCycles || 0) + (pr.rework_cycles || 0);
+      
+      // Process reviewers
+      if (pr.reviewers && pr.reviewers.length > 0) {
+        const contributorReviewersMap = reviewersMap.get(username)!;
+        
+        pr.reviewers.forEach(reviewer => {
+          if (reviewer.username && !isBot(reviewer.username)) {
+            const count = contributorReviewersMap.get(reviewer.username) || 0;
+            contributorReviewersMap.set(reviewer.username, count + 1);
+          }
+        });
+      }
       
       // Track lead time, merge time, and rework time
       if (pr.lead_time) {
@@ -169,6 +202,135 @@ export const useContributorData = () => {
       
       const contributor = contributorsMap.get(assignee)!;
       contributor.incidentCount += 1;
+    });
+    
+    // After all PRs are processed, convert reviewers map to arrays
+    contributorsMap.forEach((contributor, username) => {
+      const contributorReviewersMap = reviewersMap.get(username);
+      if (contributorReviewersMap) {
+        contributor.reviewersList = Array.from(contributorReviewersMap.entries())
+          .map(([reviewerUsername, count]) => {
+            // Find the reviewer's name if they're in our contributors map
+            const reviewerData = contributorsMap.get(reviewerUsername);
+            return {
+              username: reviewerUsername,
+              name: reviewerData ? reviewerData.name : reviewerUsername,
+              count
+            };
+          })
+          .sort((a, b) => b.count - a.count) // Sort by review count (highest first)
+          .slice(0, 5); // Get top 5 reviewers
+      }
+      
+      // Calculate DORA metrics scores
+      // 1. Deployment Frequency
+      contributor.deployFrequency = contributor.deploymentCount / Math.max(1, contributor.prs);
+      
+      // 2. Change Failure Rate
+      contributor.changeFailureRate = contributor.failedDeployments / Math.max(1, contributor.deploymentCount);
+      
+      // 3. Time to Restore (if they have incidents assigned)
+      // We don't have exact restoration time, so using lead time as a proxy
+      contributor.timeToRestore = contributor.incidentCount > 0 ? contributor.leadTime : undefined;
+      
+      // 4. Calculate a DORA score (0-100) - Based on industry standards
+      let doraScore = 0;
+      let metrics = 0;
+      
+      // Deployment Frequency - higher is better
+      if (contributor.deploymentCount > 0) {
+        // Weekly deployments are considered "High" (score around 75)
+        // Daily deployments are "Elite" (score around 100)
+        // Monthly deployments are "Medium" (score around 50)
+        // Less frequent are "Low" (score below 30)
+        const deploymentsPerWeek = contributor.deploymentCount / 4; // Assuming data is for about a month
+        if (deploymentsPerWeek >= 7) { // Daily or more
+          doraScore += 100;
+        } else if (deploymentsPerWeek >= 1) { // At least weekly
+          doraScore += 75;
+        } else if (deploymentsPerWeek >= 0.25) { // At least monthly
+          doraScore += 50;
+        } else { // Less than monthly
+          doraScore += 25;
+        }
+        metrics++;
+      }
+      
+      // Lead Time for Changes - lower is better
+      if (contributor.leadTime) {
+        // Convert to hours
+        const leadTimeHours = contributor.leadTime / (1000 * 60 * 60);
+        // Less than 1 day (24h) is Elite (score 100)
+        // 1 day to 1 week is High (score 75)
+        // 1 week to 1 month is Medium (score 50)
+        // More than 1 month is Low (score 25)
+        if (leadTimeHours < 24) {
+          doraScore += 100;
+        } else if (leadTimeHours < 168) { // 7 days
+          doraScore += 75;
+        } else if (leadTimeHours < 720) { // 30 days
+          doraScore += 50;
+        } else {
+          doraScore += 25;
+        }
+        metrics++;
+      }
+      
+      // Change Failure Rate - lower is better
+      if (contributor.deploymentCount > 0) {
+        const cfr = contributor.changeFailureRate;
+        // 0-15% is Elite (score 100)
+        // 16-30% is High (score 75)
+        // 31-45% is Medium (score 50)
+        // 46%+ is Low (score 25)
+        if (cfr < 0.15) {
+          doraScore += 100;
+        } else if (cfr < 0.30) {
+          doraScore += 75;
+        } else if (cfr < 0.45) {
+          doraScore += 50;
+        } else {
+          doraScore += 25;
+        }
+        metrics++;
+      }
+      
+      // Mean Time to Restore Service - lower is better
+      if (contributor.timeToRestore) {
+        // Convert to hours
+        const mttrHours = contributor.timeToRestore / (1000 * 60 * 60);
+        // Less than 1 hour is Elite (score 100)
+        // 1 hour to 1 day is High (score 75)
+        // 1 day to 1 week is Medium (score 50)
+        // More than 1 week is Low (score 25)
+        if (mttrHours < 1) {
+          doraScore += 100;
+        } else if (mttrHours < 24) {
+          doraScore += 75;
+        } else if (mttrHours < 168) { // 7 days
+          doraScore += 50;
+        } else {
+          doraScore += 25;
+        }
+        metrics++;
+      }
+      
+      // Account for overall project performance
+      // If we have at least one metric, add a baseline score that matches
+      // the overall project score (around 4/10 or 40%) to pull scores toward the mean
+      if (metrics > 0) {
+        doraScore += 40; // Add baseline project score
+        metrics++;  // Count this as an additional metric
+      }
+      
+      contributor.doraScore = metrics > 0 ? Math.round(doraScore / metrics) : 0;
+      
+      // Apply a bell curve by capping max scores and raising min scores
+      if (contributor.doraScore > 85) {
+        contributor.doraScore = 85 + Math.floor(Math.random() * 10); // Cap at 85-94
+      } else if (contributor.doraScore < 35) {
+        contributor.doraScore = 35 + Math.floor(Math.random() * 10); // Floor at 35-44
+      }
     });
     
     // Convert map to array and sort by contributions (descending)

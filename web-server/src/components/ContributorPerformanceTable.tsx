@@ -23,7 +23,8 @@ import {
   CheckCircle,
   ArrowUpward,
   ArrowDownward,
-  GitHub
+  GitHub,
+  Speed
 } from '@mui/icons-material';
 import { FC, useState, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
@@ -67,6 +68,48 @@ const ActivityChip: FC<{ contributions: number }> = ({ contributions }) => {
   return (
     <Tooltip title={`${contributions} commits - Activity level: ${label}`}>
       <Chip size="small" label={label} color={color} />
+    </Tooltip>
+  );
+};
+
+const DoraScoreChip: FC<{ score?: number }> = ({ score }) => {
+  const theme = useTheme();
+  
+  if (score === undefined) {
+    return (
+      <Chip 
+        size="small" 
+        label="N/A" 
+        sx={{ bgcolor: alpha(theme.colors.secondary.main, 0.1) }}
+      />
+    );
+  }
+  
+  let label: string;
+  let color: 'success' | 'warning' | 'info' | 'error' | 'default' = 'default';
+  
+  if (score >= 80) {
+    label = 'Elite';
+    color = 'success';
+  } else if (score >= 60) {
+    label = 'High';
+    color = 'info';
+  } else if (score >= 40) {
+    label = 'Medium';
+    color = 'warning';
+  } else {
+    label = 'Low';
+    color = 'error';
+  }
+  
+  return (
+    <Tooltip title={`DORA Performance Score: ${score}/100`}>
+      <Chip 
+        size="small" 
+        label={label}
+        color={color}
+        icon={<Speed fontSize="small" />}
+      />
     </Tooltip>
   );
 };
@@ -263,6 +306,20 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
               </TableCell>
               <TableCell align="right">
                 <TableSortLabel
+                  active={sortField === 'doraScore'}
+                  direction={sortField === 'doraScore' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('doraScore')}
+                >
+                  <Tooltip title="Sort by DORA performance score">
+                    <FlexBox alignCenter gap={1} justifyEnd>
+                      <Speed fontSize="small" />
+                      DORA Performance
+                    </FlexBox>
+                  </Tooltip>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell align="right">
+                <TableSortLabel
                   active={sortField === 'leadTime'}
                   direction={sortField === 'leadTime' ? sortDirection : 'asc'}
                   onClick={() => handleSort('leadTime')}
@@ -374,6 +431,9 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   ) : (
                     <Line>N/A</Line>
                   )}
+                </TableCell>
+                <TableCell align="right">
+                  <DoraScoreChip score={contributor.doraScore} />
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title={`Average lead time: ${contributor.leadTimeFormatted || 'N/A'}`}>

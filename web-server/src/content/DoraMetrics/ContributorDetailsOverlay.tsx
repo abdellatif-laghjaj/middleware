@@ -8,7 +8,9 @@ import { alpha } from '@mui/material/styles';
 import { 
   Timeline, AccessTime, Build, BugReport, CloudUpload, 
   CheckCircle, Error as ErrorIcon, GitHub, OpenInNew,
-  TrendingUp, TrendingDown, Commit, CompareArrows
+  TrendingUp, TrendingDown, Commit, CompareArrows, Code,
+  Comment, Group, Speed, Equalizer, AssignmentTurnedIn,
+  Assessment, ShowChart, BarChart, ArrowUpward, ArrowDownward
 } from '@mui/icons-material';
 
 import { Chart2, ChartOptions } from '@/components/Chart2';
@@ -303,434 +305,474 @@ const codeChangesSeries = useMemo(() => {
   ];
 }, [allPrs, contributor.username, theme.colors]);
 
-  return (
-  <FlexBox col gap={3} p={2}>
-    {/* Contributor Header with GitHub profile link */}
-    <FlexBox alignCenter gap={2} mb={3} sx={{ 
-      background: alpha(theme.colors.primary.lighter, 0.15),
-      borderRadius: '12px',
-      p: 2
-    }}>
-      <Avatar 
-        src={contributor.avatarUrl || getGHAvatar(contributor.username)}
-        alt={contributor.name} 
-        sx={{ width: 70, height: 70 }}
-      />
-      <FlexBox col flex={1}>
-        <Typography variant="h4">{contributor.name}</Typography>
-        <FlexBox alignCenter gap={1}>
-          <Typography variant="subtitle1" color="textSecondary">@{contributor.username}</Typography>
-        </FlexBox>
-      </FlexBox>
-      
-      <Button 
-        variant="contained" 
-        startIcon={<GitHub />}
-        onClick={() => window.open(`https://github.com/${contributor.username}`, '_blank', 'noopener,noreferrer')}
-        sx={{ 
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-          transition: 'all 0.2s',
-          '&:hover': {
-            transform: 'translateY(-2px)',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-          }
-        }}
-      >
-        View GitHub Profile
-      </Button>
-    </FlexBox>
+  // Helper function for DORA score display
+  const getDoraScoreColor = (score: number) => {
+    if (score >= 80) return theme.colors.success.main;
+    if (score >= 60) return theme.colors.info.main;
+    if (score >= 40) return theme.colors.warning.main;
+    return theme.colors.error.main;
+  };
 
-    {/* Activity Level (using real data) */}
-    <Paper sx={{ p: 2 }}>
-      <FlexBox col gap={1}>
-        <FlexBox alignCenter justifyBetween>
-          <Typography variant="h6">Activity Level</Typography>
-          {activityTrend !== null && (
-            <FlexBox alignCenter gap={1}>
-              {activityTrend ? (
-                <TrendingUp color="success" fontSize="small" />
-              ) : (
-                <TrendingDown color="error" fontSize="small" />
-              )}
-              <Typography 
-                variant="body2" 
-                color={activityTrend ? "success.main" : "error.main"}
+  const getDoraScoreLabel = (score: number) => {
+    if (score >= 80) return 'Elite';
+    if (score >= 60) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
+  };
+
+  return (
+    <Grid container spacing={3}>
+      {/* Profile Section */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <FlexBox gap={3} alignCenter>
+            {hasGithub ? (
+              <Avatar 
+                src={contributor.avatarUrl || getGHAvatar(contributor.username)}
+                alt={contributor.name}
+                sx={{ width: 80, height: 80 }}
+              />
+            ) : (
+              <SimpleAvatar
+                name={contributor.name || contributor.username}
+                size={theme.spacing(10)}
+                url={contributor.avatarUrl || getGHAvatar(contributor.username)}
+              />
+            )}
+            <FlexBox col>
+              <Typography variant="h4">{contributor.name}</Typography>
+              <FlexBox alignCenter gap={1}>
+                <Typography variant="subtitle1" color="textSecondary">@{contributor.username}</Typography>
+                {contributor.doraScore !== undefined && (
+                  <Tooltip title="DORA Performance Score">
+                    <Chip 
+                      size="small" 
+                      label={`DORA: ${getDoraScoreLabel(contributor.doraScore)}`} 
+                      sx={{ 
+                        bgcolor: alpha(getDoraScoreColor(contributor.doraScore), 0.1),
+                        color: getDoraScoreColor(contributor.doraScore),
+                        fontWeight: 'bold'
+                      }}
+                      icon={<Speed style={{ color: getDoraScoreColor(contributor.doraScore) }} />}
+                    />
+                  </Tooltip>
+                )}
+              </FlexBox>
+            </FlexBox>
+            <Box sx={{ ml: 'auto' }}>
+              <Button 
+                variant="outlined" 
+                startIcon={<GitHub />}
+                onClick={() => window.open(`https://github.com/${contributor.username}`, '_blank')}
               >
-                {activityTrend ? "Increasing" : "Decreasing"}
+                GitHub Profile
+              </Button>
+            </Box>
+          </FlexBox>
+        </Paper>
+      </Grid>
+
+      {/* Stats Overview */}
+      <Grid item xs={12} md={8}>
+        <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+          <Typography variant="h6" gutterBottom>Contribution Overview</Typography>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={6} sm={3}>
+              <FlexBox col alignCenter>
+                <FlexBox centered sx={{ 
+                  borderRadius: '50%', 
+                  bgcolor: alpha(theme.colors.primary.main, 0.1), 
+                  width: 48, 
+                  height: 48, 
+                  mb: 1 
+                }}>
+                  <Commit color="primary" />
+                </FlexBox>
+                <Typography variant="h5">{contributor.contributions}</Typography>
+                <Typography variant="body2" color="textSecondary">Commits</Typography>
+              </FlexBox>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <FlexBox col alignCenter>
+                <FlexBox centered sx={{ 
+                  borderRadius: '50%', 
+                  bgcolor: alpha(theme.colors.success.main, 0.1), 
+                  width: 48, 
+                  height: 48, 
+                  mb: 1 
+                }}>
+                  <Code color="success" />
+                </FlexBox>
+                <Typography variant="h5">{contributor.prs}</Typography>
+                <Typography variant="body2" color="textSecondary">Pull Requests</Typography>
+              </FlexBox>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <FlexBox col alignCenter>
+                <FlexBox centered sx={{ 
+                  borderRadius: '50%', 
+                  bgcolor: alpha(theme.colors.info.main, 0.1), 
+                  width: 48, 
+                  height: 48, 
+                  mb: 1 
+                }}>
+                  <Comment color="info" />
+                </FlexBox>
+                <Typography variant="h5">{contributor.commentCount || 0}</Typography>
+                <Typography variant="body2" color="textSecondary">Comments</Typography>
+              </FlexBox>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <FlexBox col alignCenter>
+                <FlexBox centered sx={{ 
+                  borderRadius: '50%', 
+                  bgcolor: alpha(theme.colors.warning.main, 0.1),
+                  width: 48, 
+                  height: 48, 
+                  mb: 1 
+                }}>
+                  <CompareArrows color="warning" />
+                </FlexBox>
+                <Typography variant="h5">{contributor.changeCycles || 0}</Typography>
+                <Typography variant="body2" color="textSecondary">Rework Cycles</Typography>
+              </FlexBox>
+            </Grid>
+          </Grid>
+
+          {/* Code Stats */}
+          <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>Code Contribution</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.colors.success.main, 0.05),
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.colors.success.main, 0.1)}`
+                }}
+              >
+                <FlexBox justifyBetween alignCenter>
+                  <Typography variant="body2" color="textSecondary">Additions</Typography>
+                  <ArrowUpward fontSize="small" color="success" />
+                </FlexBox>
+                <Typography variant="h5" sx={{ mt: 1 }}>{contributor.additions.toLocaleString()}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Paper 
+                elevation={0}
+                sx={{ 
+                  p: 2, 
+                  bgcolor: alpha(theme.colors.error.main, 0.05),
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.colors.error.main, 0.1)}`
+                }}
+              >
+                <FlexBox justifyBetween alignCenter>
+                  <Typography variant="body2" color="textSecondary">Deletions</Typography>
+                  <ArrowDownward fontSize="small" color="error" />
+                </FlexBox>
+                <Typography variant="h5" sx={{ mt: 1 }}>{contributor.deletions.toLocaleString()}</Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Recent Activity Chart Title */}
+          <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>Recent Commit Activity</Typography>
+        </Paper>
+      </Grid>
+
+      {/* DORA Metrics Section */}
+      <Grid item xs={12} md={4}>
+        <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+          <FlexBox gap={1} alignCenter mb={2}>
+            <Assessment color="primary" />
+            <Typography variant="h6">DORA Performance Metrics</Typography>
+          </FlexBox>
+          
+          {contributor.doraScore !== undefined && (
+            <Box sx={{ mb: 3, mt: 2 }}>
+              <FlexBox justifyBetween alignCenter mb={1}>
+                <Typography variant="body2" color="textSecondary">Overall Score</Typography>
+                <Typography variant="body2" fontWeight="bold" sx={{ color: getDoraScoreColor(contributor.doraScore) }}>
+                  {getDoraScoreLabel(contributor.doraScore)}
+                </Typography>
+              </FlexBox>
+              <LinearProgress 
+                variant="determinate" 
+                value={contributor.doraScore} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  bgcolor: alpha(theme.colors.primary.main, 0.1),
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor: getDoraScoreColor(contributor.doraScore)
+                  }
+                }} 
+              />
+            </Box>
+          )}
+          
+          {/* DORA Metrics */}
+          <Box sx={{ mt: 3 }}>
+            <FlexBox justifyBetween alignCenter mb={1.5}>
+              <FlexBox gap={1} alignCenter>
+                <ShowChart fontSize="small" color="primary" />
+                <Typography variant="body2">Deployment Frequency</Typography>
+              </FlexBox>
+              <Chip 
+                size="small" 
+                label={contributor.deployFrequency ? 
+                  contributor.deployFrequency.toFixed(2) + ' / PR' : 
+                  'N/A'
+                } 
+                sx={{ 
+                  bgcolor: alpha(theme.colors.primary.main, 0.1),
+                  fontWeight: 'medium'
+                }} 
+              />
+            </FlexBox>
+            
+            <FlexBox justifyBetween alignCenter mb={1.5}>
+              <FlexBox gap={1} alignCenter>
+                <AccessTime fontSize="small" color="primary" />
+                <Typography variant="body2">Lead Time for Changes</Typography>
+              </FlexBox>
+              <Chip 
+                size="small" 
+                label={contributor.leadTimeFormatted || 'N/A'} 
+                sx={{ 
+                  bgcolor: alpha(theme.colors.primary.main, 0.1),
+                  fontWeight: 'medium'
+                }} 
+              />
+            </FlexBox>
+            
+            <FlexBox justifyBetween alignCenter mb={1.5}>
+              <FlexBox gap={1} alignCenter>
+                <ErrorIcon fontSize="small" color="primary" />
+                <Typography variant="body2">Change Failure Rate</Typography>
+              </FlexBox>
+              <Chip 
+                size="small" 
+                label={contributor.changeFailureRate !== undefined ? 
+                  (contributor.changeFailureRate * 100).toFixed(1) + '%' : 
+                  'N/A'
+                } 
+                sx={{ 
+                  bgcolor: alpha(theme.colors.primary.main, 0.1),
+                  fontWeight: 'medium'
+                }} 
+              />
+            </FlexBox>
+            
+            <FlexBox justifyBetween alignCenter>
+              <FlexBox gap={1} alignCenter>
+                <BugReport fontSize="small" color="primary" />
+                <Typography variant="body2">Time to Restore</Typography>
+              </FlexBox>
+              <Chip 
+                size="small" 
+                label={contributor.timeToRestore ? 
+                  getDurationString(contributor.timeToRestore) : 
+                  'N/A'
+                } 
+                sx={{ 
+                  bgcolor: alpha(theme.colors.primary.main, 0.1),
+                  fontWeight: 'medium'
+                }} 
+              />
+            </FlexBox>
+          </Box>
+        </Paper>
+      </Grid>
+      
+      {/* Commit History Chart */}
+      <Grid item xs={12} md={8}>
+        <Paper sx={{ p: 0, borderRadius: 2, height: '100%', overflow: 'hidden' }}>
+          <Chart2
+            height={260}
+            id="commit-history-chart"
+            type="line"
+            options={chartOptions}
+            series={commitHistorySeries}
+            labels={commitHistoryLabels}
+          />
+        </Paper>
+      </Grid>
+      
+      {/* Top Reviewers */}
+      <Grid item xs={12} md={4}>
+        <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+          <FlexBox gap={1} alignCenter mb={2}>
+            <Group color="primary" />
+            <Typography variant="h6">Top Reviewers</Typography>
+          </FlexBox>
+          
+          {contributor.reviewersList && contributor.reviewersList.length > 0 ? (
+            <Box>
+              {contributor.reviewersList.map((reviewer, index) => (
+                <FlexBox justifyBetween alignCenter key={reviewer.username} mb={1.5}>
+                  <FlexBox gap={1.5} alignCenter>
+                    <Avatar
+                      sx={{ width: 32, height: 32 }}
+                      src={getGHAvatar(reviewer.username)}
+                      alt={reviewer.name}
+                    />
+                    <Box>
+                      <Typography variant="body2">{reviewer.name}</Typography>
+                      <Typography variant="caption" color="textSecondary">@{reviewer.username}</Typography>
+                    </Box>
+                  </FlexBox>
+                  <Chip 
+                    size="small" 
+                    label={`${reviewer.count} ${reviewer.count === 1 ? 'review' : 'reviews'}`} 
+                    sx={{ 
+                      bgcolor: alpha(theme.colors.info.main, 0.1),
+                      fontWeight: 'medium'
+                    }} 
+                  />
+                </FlexBox>
+              ))}
+            </Box>
+          ) : (
+            <FlexBox col alignCenter justifyCenter sx={{ height: 200 }}>
+              <Group sx={{ fontSize: 40, color: alpha(theme.colors.primary.main, 0.2), mb: 1 }} />
+              <Typography variant="body2" color="textSecondary">
+                No reviewer data available
               </Typography>
             </FlexBox>
           )}
-        </FlexBox>
-        <LinearProgress 
-          variant="determinate" 
-          value={activityLevel} 
-          sx={{ 
-            height: 10, 
-            borderRadius: 5,
-            bgcolor: alpha(theme.colors.primary.main, 0.1),
-            '& .MuiLinearProgress-bar': {
-              bgcolor: theme.colors.primary.main
-            }
-          }} 
-        />
-        <FlexBox alignCenter justifyBetween>
-          <Typography variant="body2">Low</Typography>
-          <Typography variant="body2">High</Typography>
-        </FlexBox>
-      </FlexBox>
-    </Paper>
+        </Paper>
+      </Grid>
 
-    <Divider />
-
-    {/* Contributor Stats Summary with real data */}
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6} md={3}>
-        <Paper sx={{ p: 2, bgcolor: alpha(theme.colors.primary.main, 0.05) }}>
-          <FlexBox col alignCenter>
-            <FlexBox alignCenter>
-              <Commit color="primary" fontSize="large" />
-              {activityTrend !== null && (
-                <Box sx={{ ml: 0.5 }}>
-                  {activityTrend ? (
-                    <TrendingUp color="success" fontSize="small" />
-                  ) : (
-                    <TrendingDown color="error" fontSize="small" />
-                  )}
-                </Box>
-              )}
+      {/* Recent PRs */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <FlexBox gap={1} alignCenter mb={3}>
+            <Code color="primary" />
+            <Typography variant="h6">Recent Pull Requests</Typography>
+          </FlexBox>
+          
+          {contributorPrs.length > 0 ? (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Title</TableCell>
+                    <TableCell>Repository</TableCell>
+                    <TableCell align="right">Commits</TableCell>
+                    <TableCell align="right">Changes</TableCell>
+                    <TableCell align="right">Status</TableCell>
+                    <TableCell align="right">Created</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {contributorPrs.map((pr) => (
+                    <TableRow 
+                      key={pr.id}
+                      hover
+                      onClick={() => openGitHubLink(pr.pr_link)}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      <TableCell>
+                        <Tooltip title={pr.title}>
+                          <Typography variant="body2" noWrap sx={{ maxWidth: 250 }}>
+                            {pr.title || `PR #${pr.number}`}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>{pr.repo_name}</TableCell>
+                      <TableCell align="right">{pr.commits}</TableCell>
+                      <TableCell align="right">+{pr.additions} / -{pr.deletions}</TableCell>
+                      <TableCell align="right">
+                        <Chip 
+                          size="small" 
+                          label={pr.state} 
+                          color={getStatusColor(pr.state)}
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        {format(new Date(pr.created_at), 'MMM d, yyyy')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <FlexBox col alignCenter justifyCenter sx={{ py: 4 }}>
+              <Code sx={{ fontSize: 40, color: alpha(theme.colors.primary.main, 0.2), mb: 1 }} />
+              <Typography variant="body2" color="textSecondary">
+                No recent pull requests found
+              </Typography>
             </FlexBox>
-            <Typography variant="h6">{contributor.contributions || 0}</Typography>
-            <Typography variant="body2">Total Commits</Typography>
-          </FlexBox>
+          )}
         </Paper>
       </Grid>
-      <Grid item xs={12} sm={6} md={3}>
-        <Paper sx={{ p: 2, bgcolor: alpha(theme.colors.info.main, 0.05) }}>
-          <FlexBox col alignCenter>
-            <CompareArrows color="info" fontSize="large" />
-            <Typography variant="h6">{contributor.prs || 0}</Typography>
-            <Typography variant="body2">Pull Requests</Typography>
+      
+      {/* Recent Deployments */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <FlexBox gap={1} alignCenter mb={3}>
+            <CloudUpload color="primary" />
+            <Typography variant="h6">Recent Deployments</Typography>
           </FlexBox>
-        </Paper>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3}>
-        <Paper sx={{ p: 2, bgcolor: alpha(theme.colors.success.main, 0.05) }}>
-          <FlexBox col alignCenter>
-            <CloudUpload color="success" fontSize="large" />
-            <Typography variant="h6">{contributor.deploymentCount || 0}</Typography>
-            <Typography variant="body2">Deployments</Typography>
-          </FlexBox>
-        </Paper>
-      </Grid>
-      <Grid item xs={12} sm={6} md={3}>
-        <Paper sx={{ p: 2, bgcolor: alpha(theme.colors.warning.main, 0.05) }}>
-          <FlexBox col alignCenter>
-            <BugReport color="warning" fontSize="large" />
-            <Typography variant="h6">{contributor.incidentCount || 0}</Typography>
-            <Typography variant="body2">Incidents</Typography>
-          </FlexBox>
+          
+          {contributorDeployments.length > 0 ? (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Environment</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Date</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {contributorDeployments.map((deployment) => (
+                    <TableRow key={deployment.id}>
+                      <TableCell>{deployment.deployment_id}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          size="small" 
+                          label={deployment.environment || 'production'} 
+                          sx={{ 
+                            bgcolor: alpha(getEnvironmentColor(deployment.environment), 0.1),
+                            color: getEnvironmentColor(deployment.environment)
+                          }} 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FlexBox alignCenter gap={0.5}>
+                          {getStatusIcon(deployment.status)}
+                          <Typography variant="body2">
+                            {getStatusLabel(deployment.status)}
+                          </Typography>
+                        </FlexBox>
+                      </TableCell>
+                      <TableCell align="right">
+                        {format(new Date(deployment.created_at), 'MMM d, yyyy HH:mm')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <FlexBox col alignCenter justifyCenter sx={{ py: 4 }}>
+              <CloudUpload sx={{ fontSize: 40, color: alpha(theme.colors.primary.main, 0.2), mb: 1 }} />
+              <Typography variant="body2" color="textSecondary">
+                No recent deployments found
+              </Typography>
+            </FlexBox>
+          )}
         </Paper>
       </Grid>
     </Grid>
-
-    {/* Commit Activity Chart */}
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>Commit Activity (Last 12 Weeks)</Typography>
-      <Box height={300}>
-        <Chart2
-          id="contributor-commit-history"
-          type="line"
-          series={commitHistorySeries}
-          labels={commitHistoryLabels}
-          options={chartOptions}
-        />
-      </Box>
-    </Paper>
-
-    {/* Code Changes Chart (Additions/Deletions) */}
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>Code Changes (Last 12 Weeks)</Typography>
-      <Box height={300}>
-        <Chart2
-          id="contributor-code-changes"
-          type="line"
-          series={codeChangesSeries}
-          labels={commitHistoryLabels}
-          options={chartOptions}
-        />
-      </Box>
-    </Paper>
-
-    {/* Performance Metrics */}
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>Performance Metrics</Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={3}>
-          <FlexBox col alignCenter p={2}>
-            <Tooltip title="Time from first commit to deployment">
-              <AccessTime color="primary" fontSize="large" />
-            </Tooltip>
-            <Typography variant="h6">{contributor.leadTimeFormatted || 'N/A'}</Typography>
-            <Typography variant="body2">Avg. Lead Time</Typography>
-          </FlexBox>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <FlexBox col alignCenter p={2}>
-            <Tooltip title="Time from PR opened to merged">
-              <AccessTime color="info" fontSize="large" />
-            </Tooltip>
-            <Typography variant="h6">{contributor.mergeTimeFormatted || 'N/A'}</Typography>
-            <Typography variant="body2">Avg. Merge Time</Typography>
-          </FlexBox>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <FlexBox col alignCenter p={2}>
-            <Tooltip title="Time spent on code review changes">
-              <Build color="warning" fontSize="large" />
-            </Tooltip>
-            <Typography variant="h6">{contributor.reworkTimeFormatted || 'N/A'}</Typography>
-            <Typography variant="body2">Avg. Rework Time</Typography>
-          </FlexBox>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <FlexBox col alignCenter p={2}>
-            <Tooltip title="Percentage of PRs merged on first review">
-              <CheckCircle color="success" fontSize="large" />
-            </Tooltip>
-            <Typography variant="h6">{contributor.firstTimeApprovalRate || '0'}%</Typography>
-            <Typography variant="body2">First Approval Rate</Typography>
-          </FlexBox>
-        </Grid>
-      </Grid>
-    </Paper>
-
-    {/* Recent Pull Requests with PR number */}
-    <Paper sx={{ p: 2, borderRadius: '12px', boxShadow: theme.customShadows?.z1 || '0 2px 8px rgba(0,0,0,0.08)' }}>
-      <FlexBox justifyBetween alignCenter mb={2}>
-        <Typography variant="h6">Recent Pull Requests</Typography>
-        <Button 
-          variant="outlined" 
-          size="small"
-          startIcon={<GitHub />}
-          onClick={() => window.open(`https://github.com/${contributor.username}?tab=repositories`, '_blank', 'noopener,noreferrer')}
-          sx={{ borderRadius: '8px' }}
-        >
-          View All PRs
-        </Button>
-      </FlexBox>
-      
-      {contributorPrs.length > 0 ? (
-        <TableContainer sx={{ maxHeight: '400px' }}>
-          <Table size="small">
-            <TableHead sx={{ backgroundColor: alpha(theme.colors.primary.main, 0.08) }}>
-              <TableRow>
-                <TableCell>PR</TableCell>
-                <TableCell>Title</TableCell>
-                <TableCell>Changes</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Created</TableCell>
-                <TableCell align="right">Lead Time</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {contributorPrs.map((pr) => {
-                // Ensure we have a valid URL
-                const prUrl = pr.html_url || pr.pr_link || `https://github.com/${pr.repo_name}/pull/${pr.number}`;
-                
-                return (
-                  <TableRow 
-                    key={pr.id} 
-                    hover
-                    sx={{ 
-                      '&:hover': {
-                        backgroundColor: alpha(theme.colors.primary.lighter, 0.15),
-                      }
-                    }}
-                  >
-                    <TableCell>
-                      <Link 
-                        href={prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 0.5,
-                          fontWeight: 'bold',
-                          color: theme.colors.primary.main,
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          }
-                        }}
-                      >
-                        <GitHub fontSize="small" color="primary" />
-                        #{pr.number || '?'}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title={pr.title || ''}>
-                        <Typography 
-                          noWrap 
-                          sx={{ 
-                            maxWidth: 250,
-                            cursor: 'pointer',
-                            '&:hover': { color: theme.colors.primary.main }
-                          }}
-                          onClick={() => window.open(prUrl, '_blank', 'noopener,noreferrer')}
-                        >
-                          {pr.title}
-                        </Typography>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title={`${pr.additions || 0} additions, ${pr.deletions || 0} deletions, ${pr.changed_files || 0} files changed`}>
-                        <Box>
-                          <FlexBox gap={1}>
-                            <span style={{ color: theme.colors.success.main }}>+{pr.additions || 0}</span>
-                            <span style={{ color: theme.colors.error.main }}>-{pr.deletions || 0}</span>
-                          </FlexBox>
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        size="small" 
-                        label={getStatusLabel(pr.state)}
-                        color={getStatusColor(pr.state)}
-                        icon={getStatusIcon(pr.state)}
-                        sx={{ fontWeight: 500 }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      {pr.created_at ? format(new Date(pr.created_at), 'MMM d, yyyy') : 'N/A'}
-                    </TableCell>
-                    <TableCell align="right">
-                      {pr.lead_time ? getDurationString(pr.lead_time) : 'N/A'}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Open PR in GitHub">
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => window.open(prUrl, '_blank', 'noopener,noreferrer')}
-                          sx={{ 
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.colors.primary.main, 0.1),
-                              transform: 'scale(1.1)'
-                            },
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <OpenInNew fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <FlexBox col alignCenter justifyCenter p={4}>
-          <GitHub sx={{ fontSize: 40, opacity: 0.3, mb: 2 }} />
-          <Typography variant="body1">No pull requests found</Typography>
-        </FlexBox>
-      )}
-    </Paper>
-
-    {/* Recent Deployments */}
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>Recent Deployments</Typography>
-      {contributorDeployments.length > 0 ? (
-        <TableContainer>
-          <Table size="small">
-            <TableHead sx={{ backgroundColor: alpha(theme.colors.primary.main, 0.08) }}>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Environment</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Date</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {contributorDeployments.map((deployment) => (
-                <TableRow key={deployment.id} hover>
-                  <TableCell>
-                    <Typography fontWeight="bold">{deployment.id}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={deployment.environment || 'Unknown'}
-                      size="small"
-                      color={getEnvironmentColor(deployment.environment)}
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={deployment.status || 'unknown'}
-                      color={deployment.status === 'success' ? 'success' : 'error'}
-                      icon={deployment.status === 'success' ? 
-                        <CheckCircle fontSize="small" /> : 
-                        <ErrorIcon fontSize="small" />}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    {deployment.created_at ? format(new Date(deployment.created_at), 'MMM d, yyyy') : 'N/A'}
-                  </TableCell>
-                  <TableCell align="right">
-                    {deployment.url ? (
-                      <Tooltip title="View deployment details">
-                        <IconButton 
-                          size="small"
-                          onClick={() => openGitHubLink(deployment.url)}
-                          color="primary"
-                        >
-                          <OpenInNew fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : (
-                      <IconButton size="small" disabled>
-                        <OpenInNew fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <FlexBox col alignCenter justifyCenter p={4}>
-          <CloudUpload sx={{ fontSize: 40, opacity: 0.3, mb: 2 }} />
-          <Typography variant="body1">No deployments found</Typography>
-        </FlexBox>
-      )}
-    </Paper>
-
-    {/* Add smooth transitions */}
-    <style jsx global>{`
-      .MuiTableRow-root, .MuiLink-root, .MuiButton-root, .MuiIconButton-root {
-        transition: all 0.2s ease !important;
-      }
-      
-      .MuiChip-root {
-        border-radius: 6px !important;
-      }
-      
-      .MuiButton-root:hover {
-        transform: translateY(-1px);
-      }
-    `}</style>
-  </FlexBox>
-);
+  );
 };
 
 // Helper functions for PR status display
