@@ -59,13 +59,12 @@ type AggregatedDORAData = DORAScoreResponse &
 
 const postSchema = yup.object().shape({
   data: yup.object().optional(),
-  model: yup.string().required(),
-  access_token: yup.string().required()
+  model: yup.string().required()
 });
 
 const endpoint = new Endpoint(nullSchema);
 endpoint.handle.POST(postSchema, async (req, res) => {
-  const { data, model, access_token } = req.payload;
+  const { data, model } = req.payload;
   const dora_data = data as unknown as TeamDoraMetricsApiResponseType;
 
   try {
@@ -77,12 +76,12 @@ endpoint.handle.POST(postSchema, async (req, res) => {
       deploymentFrequencySummary,
       doraTrendSummary
     ] = await Promise.all([
-      getDoraMetricsScore(dora_data, model, access_token),
-      getLeadTimeSummary(dora_data, model, access_token),
-      getCFRSummary(dora_data, model, access_token),
-      getMTTRSummary(dora_data, model, access_token),
-      getDeploymentFrequencySummary(dora_data, model, access_token),
-      getDoraTrendsCorrelationSummary(dora_data, model, access_token)
+      getDoraMetricsScore(dora_data, model),
+      getLeadTimeSummary(dora_data, model),
+      getCFRSummary(dora_data, model),
+      getMTTRSummary(dora_data, model),
+      getDeploymentFrequencySummary(dora_data, model),
+      getDoraTrendsCorrelationSummary(dora_data, model)
     ]);
 
     const aggregatedData = {
@@ -96,8 +95,7 @@ endpoint.handle.POST(postSchema, async (req, res) => {
 
     const compiledSummary = await getDORACompiledSummary(
       aggregatedData,
-      model,
-      access_token
+      model
     );
 
     const responses = {
@@ -127,9 +125,11 @@ endpoint.handle.POST(postSchema, async (req, res) => {
 
     return res.status(200).send(simplifiedData);
   } catch (error: any) {
+    console.error('Detailed Error:', error); // Add detailed error logging
     return res.status(500).send({
       message: 'Internal Server Error',
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 });
@@ -147,8 +147,7 @@ const checkForErrors = (
 
 const getDoraMetricsScore = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<DORAScoreResponse> => {
   const lead_time = dora_data.lead_time_stats.current.lead_time;
   const mean_time_to_recovery =
@@ -175,8 +174,7 @@ const getDoraMetricsScore = (
     method: 'POST',
     data: {
       data: doraData,
-      model: model,
-      access_token: access_token
+      model: model
     }
   });
 };
@@ -215,24 +213,21 @@ const get_deployment_frequency = (
 
 const getLeadTimeSummary = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<LeadTimeTrendSummaryResponse> => {
   const leadTimeTrends = transformTrendData(dora_data.lead_time_trends.current);
   return handleRequest<LeadTimeTrendSummaryResponse>('ai/lead_time_trends', {
     method: 'POST',
     data: {
       data: leadTimeTrends,
-      model: model,
-      access_token: access_token
+      model: model
     }
   });
 };
 
 const getCFRSummary = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<ChangeFailureRateTrendSummarySummary> => {
   const cfrTrends = transformTrendData(
     dora_data.change_failure_rate_trends.current
@@ -243,8 +238,7 @@ const getCFRSummary = (
       method: 'POST',
       data: {
         data: cfrTrends,
-        model: model,
-        access_token: access_token
+        model: model
       }
     }
   );
@@ -252,21 +246,18 @@ const getCFRSummary = (
 
 const getMTTRSummary = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<MeanTimeToRecoveryTrendSummaryResponse> => {
   const mttrTrends = transformTrendData(
     dora_data.mean_time_to_restore_trends.current
   );
-
   return handleRequest<MeanTimeToRecoveryTrendSummaryResponse>(
     'ai/mean_time_to_recovery_trends',
     {
       method: 'POST',
       data: {
         data: mttrTrends,
-        model: model,
-        access_token: access_token
+        model: model
       }
     }
   );
@@ -274,30 +265,18 @@ const getMTTRSummary = (
 
 const getDeploymentFrequencySummary = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<DeploymentFrequencyTrendSummaryResponse> => {
-  const deploymentFrequencyTrends = transformTrendData(
-    dora_data.deployment_frequency_trends.current
-  );
-
-  let transformedDeploymentFrequencyTrends: { [key: string]: number } = {};
-
-  for (let key in deploymentFrequencyTrends) {
-    if (deploymentFrequencyTrends.hasOwnProperty(key)) {
-      transformedDeploymentFrequencyTrends[key] =
-        deploymentFrequencyTrends[key].count;
-    }
-  }
-
   return handleRequest<DeploymentFrequencyTrendSummaryResponse>(
     'ai/deployment_frequency_trends',
     {
       method: 'POST',
       data: {
-        data: transformedDeploymentFrequencyTrends,
-        model: model,
-        access_token: access_token
+        data: {
+          deployment_frequency_trends:
+            dora_data.deployment_frequency_trends.current
+        },
+        model: model
       }
     }
   );
@@ -305,8 +284,7 @@ const getDeploymentFrequencySummary = (
 
 const getDoraTrendsCorrelationSummary = (
   dora_data: TeamDoraMetricsApiResponseType,
-  model: string,
-  access_token: string
+  model: string
 ): Promise<DoraTrendSummaryResponse> => {
   const deploymentFrequencyTrends = transformTrendData(
     dora_data.deployment_frequency_trends.current
@@ -346,16 +324,14 @@ const getDoraTrendsCorrelationSummary = (
     method: 'POST',
     data: {
       data: mergedData,
-      model: model,
-      access_token: access_token
+      model: model
     }
   });
 };
 
 const getDORACompiledSummary = (
   aggregated_dora_data: AggregatedDORAData,
-  model: string,
-  access_token: string
+  model: string
 ) => {
   return handleRequest<DoraCompiledSummaryResponse>(
     'ai/dora_data/compiled_summary',
@@ -363,8 +339,7 @@ const getDORACompiledSummary = (
       method: 'POST',
       data: {
         data: aggregated_dora_data,
-        model: model,
-        access_token: access_token
+        model: model
       }
     }
   );

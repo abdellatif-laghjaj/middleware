@@ -1,19 +1,25 @@
 import json
 import requests
+import os
 from http import HTTPStatus
 from enum import Enum
 from typing import Dict, List, Union
+import google.generativeai as genai
+import logging
 
+logger = logging.getLogger(__name__)
 
 class AIProvider(Enum):
     OPEN_AI = "OPEN_AI"
     FIREWORKS_AI = "FIREWORKS_AI"
+    GOOGLE_AI = "GOOGLE_AI"
 
 
 class LLM(Enum):
     GPT4o = "GPT4o"
     LLAMA3p1450B = "LLAMA3p1450B"
     LLAMA3p170B = "LLAMA3p170B"
+    GEMINI = "GEMINI"
 
 
 class AIAnalyticsService:
@@ -22,24 +28,50 @@ class AIAnalyticsService:
         LLM.GPT4o: "gpt-4o-mini",
         LLM.LLAMA3p1450B: "accounts/fireworks/models/llama-v3p1-405b-instruct",
         LLM.LLAMA3p170B: "accounts/fireworks/models/llama-v3p1-70b-instruct",
+        LLM.GEMINI: "gemini-2.0-flash-lite"
     }
 
-    def __init__(self, llm: LLM, access_token: str):
+    def __init__(self, llm: LLM, access_token: str = None):
         self._llm = llm
         self._access_token = access_token
+
+        # Get API key from environment if not provided
+        if not self._access_token:
+            self._access_token = self._get_api_key_from_env()
+            
+        if not self._access_token:
+            logger.error(f"No API key available for {llm}")
+            raise ValueError(f"No API key available for {llm}")
 
         if llm in [LLM.GPT4o]:
             self._ai_provider = AIProvider.OPEN_AI
         elif llm in [LLM.LLAMA3p1450B, LLM.LLAMA3p170B]:
             self._ai_provider = AIProvider.FIREWORKS_AI
+        elif llm == LLM.GEMINI:
+            self._ai_provider = AIProvider.GOOGLE_AI
+            try:
+                genai.configure(api_key=self._access_token)
+            except Exception as e:
+                logger.error(f"Failed to configure Gemini: {str(e)}")
+                raise ValueError(f"Failed to configure Gemini: {str(e)}")
         else:
-            raise Exception("Invalid LLM :)")
+            raise ValueError(f"Invalid LLM: {llm}")
 
         self._headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._access_token}",
         }
+
+    def _get_api_key_from_env(self) -> str:
+        """Get the appropriate API key based on the model from environment variables."""
+        if self._llm == LLM.GPT4o:
+            return os.getenv("OPENAI_API_KEY", "")
+        elif self._llm in [LLM.LLAMA3p1450B, LLM.LLAMA3p170B]:
+            return os.getenv("FIREWORKS_API_KEY", "")
+        elif self._llm == LLM.GEMINI:
+            return os.getenv("GEMINI_API_KEY", "")
+        return ""
 
     def _get_message(self, message: str, role: str = "user"):
         return {"role": role, "content": message}
@@ -48,54 +80,94 @@ class AIAnalyticsService:
         """
         Handles the API response, returning a success or error structure that the frontend can use.
         """
-        if response.status_code == HTTPStatus.OK:
-            return {
-                "status": "success",
-                "data": response.json()["choices"][0]["message"]["content"],
-            }
-        elif response.status_code == HTTPStatus.UNAUTHORIZED:
+        try:
+            if response.status_code == HTTPStatus.OK:
+                return {
+                    "status": "success",
+                    "data": response.json()["choices"][0]["message"]["content"],
+                }
+            elif response.status_code == HTTPStatus.UNAUTHORIZED:
+                return {
+                    "status": "error",
+                    "message": "Unauthorized Access: Your access token is either missing, expired, or invalid. Please ensure that you are providing a valid token in the environment variables.",
+                }
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Unexpected error: {response.text}",
+                }
+        except Exception as e:
+            logger.error(f"Error handling API response: {str(e)}")
             return {
                 "status": "error",
-                "message": "Unauthorized Access: Your access token is either missing, expired, or invalid. Please ensure that you are providing a valid token. ",
-            }
-        else:
-            return {
-                "status": "error",
-                "message": f"Unexpected error: {response.text}",
+                "message": f"Error processing response: {str(e)}"
             }
 
     def _open_ai_fetch_completion_open_ai(self, messages: List[Dict[str, str]]):
         """
         Handles the request to OpenAI API for fetching completions.
         """
-        payload = {
-            "model": self.LLM_NAME_TO_MODEL_MAP[self._llm],
-            "temperature": 0.6,
-            "messages": messages,
-        }
-        api_url = "https://api.openai.com/v1/chat/completions"
-        response = requests.post(api_url, headers=self._headers, json=payload)
-
-        return self._handle_api_response(response)
+        try:
+            payload = {
+                "model": self.LLM_NAME_TO_MODEL_MAP[self._llm],
+                "temperature": 0.6,
+                "messages": messages,
+            }
+            api_url = "https://api.openai.com/v1/chat/completions"
+            response = requests.post(api_url, headers=self._headers, json=payload, timeout=30)
+            return self._handle_api_response(response)
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"OpenAI API error: {str(e)}"
+            }
 
     def _fireworks_ai_fetch_completions(self, messages: List[Dict[str, str]]):
         """
         Handles the request to Fireworks AI API for fetching completions.
         """
-        payload = {
-            "model": self.LLM_NAME_TO_MODEL_MAP[self._llm],
-            "temperature": 0.6,
-            "max_tokens": 16384,
-            "top_p": 1,
-            "top_k": 40,
-            "presence_penalty": 0,
-            "frequency_penalty": 0,
-            "messages": messages,
-        }
-        api_url = "https://api.fireworks.ai/inference/v1/chat/completions"
-        response = requests.post(api_url, headers=self._headers, json=payload)
+        try:
+            payload = {
+                "model": self.LLM_NAME_TO_MODEL_MAP[self._llm],
+                "temperature": 0.6,
+                "max_tokens": 16384,
+                "top_p": 1,
+                "top_k": 40,
+                "presence_penalty": 0,
+                "frequency_penalty": 0,
+                "messages": messages,
+            }
+            api_url = "https://api.fireworks.ai/inference/v1/chat/completions"
+            response = requests.post(api_url, headers=self._headers, json=payload, timeout=30)
+            return self._handle_api_response(response)
+        except Exception as e:
+            logger.error(f"Fireworks AI API error: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Fireworks AI API error: {str(e)}"
+            }
 
-        return self._handle_api_response(response)
+    def _gemini_fetch_completions(self, messages: List[Dict[str, str]]):
+        """
+        Handles the request to Google's Gemini API for fetching completions.
+        """
+        try:
+            model = genai.GenerativeModel(self.LLM_NAME_TO_MODEL_MAP[self._llm])
+            # Combine all messages into a single prompt
+            prompt = "\n".join([msg["content"] for msg in messages])
+            response = model.generate_content(prompt)
+            
+            return {
+                "status": "success",
+                "data": response.text
+            }
+        except Exception as e:
+            logger.error(f"Gemini API error: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Gemini API error: {str(e)}"
+            }
 
     def _fetch_completion(
         self, messages: List[Dict[str, str]]
@@ -103,16 +175,26 @@ class AIAnalyticsService:
         """
         Fetches the completion using the appropriate AI provider based on the LLM.
         """
-        if self._ai_provider == AIProvider.FIREWORKS_AI:
-            return self._fireworks_ai_fetch_completions(messages)
+        try:
+            if self._ai_provider == AIProvider.FIREWORKS_AI:
+                return self._fireworks_ai_fetch_completions(messages)
 
-        if self._ai_provider == AIProvider.OPEN_AI:
-            return self._open_ai_fetch_completion_open_ai(messages)
+            if self._ai_provider == AIProvider.OPEN_AI:
+                return self._open_ai_fetch_completion_open_ai(messages)
 
-        return {
-            "status": "error",
-            "message": f"Invalid AI provider {self._ai_provider}",
-        }
+            if self._ai_provider == AIProvider.GOOGLE_AI:
+                return self._gemini_fetch_completions(messages)
+
+            return {
+                "status": "error",
+                "message": f"Invalid AI provider {self._ai_provider}",
+            }
+        except Exception as e:
+            logger.error(f"Error fetching completion: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error fetching completion: {str(e)}"
+            }
 
     def get_dora_metrics_score(
         self, four_keys_data: Dict[str, float]

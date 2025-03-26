@@ -27,6 +27,7 @@ import { FaMeta } from 'react-icons/fa6';
 import ReactMarkdown from 'react-markdown';
 import gfm from 'remark-gfm';
 import v from 'voca';
+import { SiGooglegemini } from 'react-icons/si';
 
 import { FlexBox } from '@/components/FlexBox';
 import { Line } from '@/components/Text';
@@ -42,17 +43,26 @@ import RocketGraphic from './rocket-graphic.svg';
 enum Model {
   GPT4o = 'GPT4o',
   LLAMA3p1450B = 'LLAMA3p1450B',
-  LLAMA3p1405B = 'LLAMA3p1405B',
-  LLAMA3p170B = 'LLAMA3p170B'
+  LLAMA3p170B = 'LLAMA3p170B',
+  GEMINI = 'GEMINI'
 }
 
 const openAiModels = new Set([Model.GPT4o]);
+const llamaModels = new Set([Model.LLAMA3p1450B, Model.LLAMA3p170B]);
+const geminiModels = new Set([Model.GEMINI]);
 
 const modelLabelsMap: Record<Model, string> = {
   GPT4o: 'GPT 4o',
   LLAMA3p1450B: 'Llama 3.1 / 405B',
-  LLAMA3p1405B: 'Llama 3.1 / 405B',
-  LLAMA3p170B: 'Llama 3.1 / 70B'
+  LLAMA3p170B: 'Llama 3.1 / 70B',
+  GEMINI: 'Google Gemini'
+};
+
+const modelIconMap: Record<Model, React.ReactNode> = {
+  GPT4o: <AiOutlineOpenAI transform="scale(1.2)" />,
+  LLAMA3p1450B: <FaMeta />,
+  LLAMA3p170B: <FaMeta />,
+  GEMINI: <SiGooglegemini />
 };
 
 export const AIAnalysis = () => {
@@ -66,7 +76,7 @@ export const AIAnalysis = () => {
   const savedSummary = useSelector((s) => s.doraMetrics.ai_summary);
   const savedToken = useSelector((s) => s.doraMetrics.ai_summary_token);
 
-  const [response, { loading: loadingData, fetch: loadData }] =
+  const [response, { loading: loadingData, fetch: loadData, error: loadDataError }] =
     useAxios<DoraAiAPIResponse>(`/internal/ai/dora_metrics`, {
       manual: true,
       onError: noOp
@@ -93,6 +103,43 @@ export const AIAnalysis = () => {
     depFn(token.set, savedToken);
   }, [prevSavedToken, savedToken, token.set, token.value]);
 
+  const handleGenerate = () => {
+    loadData({
+      method: 'POST',
+      data: {
+        model: selectedModel.value,
+        data: doraData
+      }
+    })
+      .then((r) => {
+        dispatch(
+          doraMetricsSlice.actions.setAiSummary({
+            summary: r.data,
+            token: ''
+          })
+        );
+        selectedTab.set(String(AnalysisTabs.dora_trend_summary));
+      })
+      .catch((r: AxiosError) => {
+        let errorMessage = 'Something went wrong!';
+        
+        if (r.response?.data) {
+          const responseData = r.response.data as any;
+          if (responseData.message) {
+            errorMessage = responseData.message;
+          }
+        }
+        
+        enqueueSnackbar(errorMessage, {
+          variant: 'error',
+          anchorOrigin: {
+            horizontal: 'right',
+            vertical: 'bottom'
+          }
+        });
+      });
+  };
+
   return (
     <FlexBox
       col
@@ -100,20 +147,9 @@ export const AIAnalysis = () => {
       sx={{ ['[data-lastpass-icon-root]']: { display: 'none' } }}
     >
       <FlexBox gap1 fullWidth>
-        <TextField
-          placeholder={
-            openAiModels.has(selectedModel.value)
-              ? 'Add your OpenAI API key'
-              : 'Add your fireworks.ai API key'
-          }
-          type="password"
-          sx={{ flex: 1 }}
-          value={token.value}
-          onChange={token.eventHandler}
-        />
         <Select
           value={selectedModel.value || models?.[0] || Model.GPT4o}
-          renderValue={(m) => modelLabelsMap[m] || m}
+          renderValue={(m) => modelLabelsMap[m as Model] || m}
           onChange={(e) => selectedModel.set(e.target.value as Model)}
           startAdornment={
             loadingModels ? (
@@ -122,54 +158,20 @@ export const AIAnalysis = () => {
               </InputAdornment>
             ) : null
           }
-          sx={{ minWidth: '200px' }}
+          sx={{ flex: 1 }}
         >
           {models?.map((m) => (
             <MenuItem value={m} key={m}>
               <FlexBox gap1 alignCenter>
-                {openAiModels.has(m) ? (
-                  <AiOutlineOpenAI transform="scale(1.2)" />
-                ) : (
-                  <FaMeta />
-                )}
-                <span>{modelLabelsMap[m] || m}</span>
+                {modelIconMap[m as Model]}
+                <span>{modelLabelsMap[m as Model] || m}</span>
               </FlexBox>
             </MenuItem>
           ))}
         </Select>
         <Button
-          onClick={() =>
-            loadData({
-              method: 'POST',
-              data: {
-                access_token: token.value,
-                model: selectedModel.value,
-                data: doraData
-              }
-            })
-              .then((r) => {
-                dispatch(
-                  doraMetricsSlice.actions.setAiSummary({
-                    summary: r.data,
-                    token: token.value
-                  })
-                );
-                selectedTab.set(String(AnalysisTabs.dora_trend_summary));
-              })
-              .catch((r: AxiosError) => {
-                enqueueSnackbar(
-                  (r.response?.data as any)?.message || 'Something went wrong!',
-                  {
-                    variant: 'error',
-                    anchorOrigin: {
-                      horizontal: 'right',
-                      vertical: 'bottom'
-                    }
-                  }
-                );
-              })
-          }
-          disabled={Boolean(loadingData || !token.value.trim().length)}
+          onClick={handleGenerate}
+          disabled={loadingData}
           endIcon={
             loadingData ? (
               <CircularProgress size={theme.spacing(1.5)} />
@@ -186,7 +188,7 @@ export const AIAnalysis = () => {
       <FlexBox col gap1>
         {!data ? (
           <FlexBox col overflow="hidden">
-            <Line>Please enter a token, and click "Generate"</Line>
+            <Line>Select a model and click "Generate". API keys need to be added to your environment variables.</Line>
             <FlexBox
               position="absolute"
               sx={{
