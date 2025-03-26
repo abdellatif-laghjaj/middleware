@@ -194,3 +194,9 @@ tsconfig.tsbuildinfo
 
 # Sentry
 .sentryclirc
+
+
+# Cursor AI
+.cursorrules
+.cursorignore
+.cursor/*
