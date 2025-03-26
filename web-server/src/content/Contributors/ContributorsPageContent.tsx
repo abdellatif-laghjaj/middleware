@@ -75,7 +75,7 @@ export const ContributorsPageContent: FC = () => {
       <Grid container spacing={3}>
         {/* Top Contributors Podium */}
         <Grid item xs={12} md={5}>
-          {contributors && contributors.length >= 3 && (
+          {contributors && contributors.length > 0 && (
             <TopContributorsPodium contributors={contributors} />
           )}
         </Grid>
