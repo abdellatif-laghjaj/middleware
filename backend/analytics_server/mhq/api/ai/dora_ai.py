@@ -350,7 +350,7 @@ def generate_contributor_summary(contributor_data, model=LLM.GEMINI.value):
         username = contributor_data.get('username', 'unknown')
         
         prompt = f"""
-        Generate a concise, professional summary of this contributor's activity and impact:
+        Generate a professional assessment of this contributor's activity and impact in the following format:
 
         Name: {name} ({username})
         PRs Created: {contributor_data.get('prs', 0)}
@@ -363,7 +363,26 @@ def generate_contributor_summary(contributor_data, model=LLM.GEMINI.value):
         Merge Time: {contributor_data.get('mergeTimeFormatted', 'N/A')}
         Rework Time: {contributor_data.get('reworkTimeFormatted', 'N/A')}
         
-        So based on this data, please generate a summary of the contributor's activity and impact. (because the reviers/,aninteris of project will see this) so it should be impactlfuu summary to help them optimse the performance of the project.
+        Use exactly this format in your response:
+
+        ## Summary
+        [Write a brief 1-2 sentence overview of the contributor's work pattern and effectiveness]
+
+        ## Strengths
+        • [First strength point - be specific and concise]
+        • [Second strength point if applicable]
+        • [Third strength point if applicable]
+
+        ## Weaknesses
+        • [First area for improvement - be specific and constructive]
+        • [Second area for improvement if applicable]
+
+        ## Recommendations
+        • [First actionable recommendation]
+        • [Second actionable recommendation if applicable]
+        
+        Keep each bullet point clear, specific, and under 15 words when possible.
+        Base all observations strictly on the data provided.
         """
         
         # Initialize the AI service and get a response

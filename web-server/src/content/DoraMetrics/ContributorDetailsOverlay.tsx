@@ -1,6 +1,6 @@
 import { FC, useMemo, useEffect } from 'react';
 import { 
-  Avatar, Box, Button, Chip, Divider, Grid, Paper, Tooltip, 
+  Avatar, Box, Button, Card, Chip, Divider, Grid, Paper, Tooltip, 
   Typography, useTheme, LinearProgress, IconButton, Link,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Alert, CircularProgress
@@ -12,7 +12,7 @@ import {
   TrendingUp, TrendingDown, Commit, CompareArrows, Code,
   Comment, Group, Speed, Equalizer, AssignmentTurnedIn,
   Assessment, ShowChart, BarChart, ArrowUpward, ArrowDownward,
-  AutoAwesome
+  AutoAwesome, TipsAndUpdates, ThumbUp, Warning, Lightbulb
 } from '@mui/icons-material';
 
 import { Chart2, ChartOptions } from '@/components/Chart2';
@@ -24,6 +24,7 @@ import { useSelector } from '@/store';
 import { format } from 'date-fns';
 import { getDurationString } from '@/utils/date';
 import { useContributorSummary } from '@/hooks/useContributorSummary';
+import ReactMarkdown from 'react-markdown';
 
 interface ContributorDetailsProps {
   contributor: ContributorData;
@@ -331,6 +332,159 @@ const codeChangesSeries = useMemo(() => {
     if (score >= 60) return 'High';
     if (score >= 40) return 'Medium';
     return 'Low';
+  };
+
+  // Helper to format the markdown content with proper styling and organize into cards
+  const formatSummaryContent = (content: string) => {
+    if (!content) return null;
+    
+    // Replace markdown headers with styled sections
+    const sections = content.split('##').filter(section => section.trim().length > 0);
+    
+    if (sections.length <= 1) {
+      // If no proper sections are found, just render the content as is
+      return (
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Card sx={{ 
+              p: 2.5, 
+              height: '100%',
+              boxShadow: `0 2px 8px ${alpha(theme.colors.primary.main, 0.1)}`,
+              borderRadius: 2
+            }}>
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </Card>
+          </Grid>
+        </Grid>
+      );
+    }
+    
+    // Define icons, colors, and gradient backgrounds for each section type
+    const sectionStyles = {
+      summary: {
+        icon: <AutoAwesome />,
+        color: theme.colors.primary.main,
+        bgColor: alpha(theme.colors.primary.lighter, 0.15),
+        borderColor: alpha(theme.colors.primary.main, 0.2),
+        gradient: `linear-gradient(135deg, ${alpha(theme.colors.primary.lighter, 0.2)} 0%, ${alpha(theme.colors.primary.main, 0.05)} 100%)`
+      },
+      strengths: {
+        icon: <ThumbUp />,
+        color: theme.colors.success.main,
+        bgColor: alpha(theme.colors.success.lighter, 0.15),
+        borderColor: alpha(theme.colors.success.main, 0.2),
+        gradient: `linear-gradient(135deg, ${alpha(theme.colors.success.lighter, 0.2)} 0%, ${alpha(theme.colors.success.main, 0.05)} 100%)`
+      },
+      weaknesses: {
+        icon: <Warning />,
+        color: theme.colors.warning.main,
+        bgColor: alpha(theme.colors.warning.lighter, 0.15),
+        borderColor: alpha(theme.colors.warning.main, 0.2),
+        gradient: `linear-gradient(135deg, ${alpha(theme.colors.warning.lighter, 0.2)} 0%, ${alpha(theme.colors.warning.main, 0.05)} 100%)`
+      },
+      recommendations: {
+        icon: <Lightbulb />,
+        color: theme.colors.info.main,
+        bgColor: alpha(theme.colors.info.lighter, 0.15),
+        borderColor: alpha(theme.colors.info.main, 0.2),
+        gradient: `linear-gradient(135deg, ${alpha(theme.colors.info.lighter, 0.2)} 0%, ${alpha(theme.colors.info.main, 0.05)} 100%)`
+      }
+    };
+    
+    return (
+      <Grid container spacing={2}>
+        {sections.map((section, index) => {
+          const [title, ...contentParts] = section.split('\n').filter(line => line.trim().length > 0);
+          const sectionContent = contentParts.join('\n');
+          const titleLower = title.trim().toLowerCase();
+          
+          let style = sectionStyles.summary;
+          
+          if (titleLower.includes('strength')) {
+            style = sectionStyles.strengths;
+          } else if (titleLower.includes('weakness')) {
+            style = sectionStyles.weaknesses;
+          } else if (titleLower.includes('recommend')) {
+            style = sectionStyles.recommendations;
+          }
+          
+          return (
+            <Grid item xs={12} md={6} key={index}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  borderRadius: 2,
+                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                  background: style.gradient,
+                  boxShadow: `0 2px 8px ${alpha(style.color, 0.1)}`,
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${alpha(style.color, 0.15)}`
+                  },
+                  border: `1px solid ${alpha(style.color, 0.1)}`
+                }}
+              >
+                <Box
+                  sx={{ 
+                    p: 2,
+                    pb: 1.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: `1px solid ${alpha(style.color, 0.1)}`
+                  }}
+                >
+                  <Box 
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: alpha(style.color, 0.1),
+                      borderRadius: '50%',
+                      width: 36,
+                      height: 36,
+                      mr: 1.5,
+                      color: style.color
+                    }}
+                  >
+                    {style.icon}
+                  </Box>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: style.color
+                    }}
+                  >
+                    {title.trim()}
+                  </Typography>
+                </Box>
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    pt: 1.5,
+                    flexGrow: 1,
+                    '& ul, & ol': {
+                      pl: 2,
+                      mb: 0
+                    },
+                    '& p': {
+                      mb: 0.5
+                    },
+                    '& li': {
+                      mb: 0.5
+                    }
+                  }}
+                >
+                  <ReactMarkdown>{sectionContent}</ReactMarkdown>
+                </Box>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+    );
   };
 
   return (
@@ -785,18 +939,53 @@ const codeChangesSeries = useMemo(() => {
         </Paper>
       </Grid>
 
-      {/* AI-powered summary section - MOVED HERE */}
+      {/* AI-powered summary section */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3, borderRadius: 2 }}>
-          <FlexBox gap={1} alignCenter mb={3}>
-            <AutoAwesome color="primary" />
+        <Paper 
+          sx={{ 
+            p: 3, 
+            borderRadius: 2,
+            boxShadow: `0 0 20px ${alpha(theme.colors.primary.main, 0.08)}`,
+            overflow: 'hidden'
+          }}
+        >
+          <FlexBox gap={1.5} alignCenter mb={3}>
+            <Box 
+              sx={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: alpha(theme.colors.primary.main, 0.1),
+                borderRadius: '50%',
+                width: 40,
+                height: 40
+              }}
+            >
+              <AutoAwesome color="primary" />
+            </Box>
             <Typography variant="h6">AI-Powered Contributor Summary</Typography>
           </FlexBox>
           
           {isLoading ? (
-            <FlexBox alignCenter justifyCenter sx={{ py: 2 }}>
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ ml: 2 }}>
+            <FlexBox alignCenter justifyCenter sx={{ py: 4 }}>
+              <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                <CircularProgress size={36} />
+                <Box
+                  sx={{
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    position: 'absolute',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AutoAwesome style={{ fontSize: 16, color: theme.colors.primary.main }} />
+                </Box>
+              </Box>
+              <Typography variant="body2" sx={{ ml: 2, fontWeight: 500 }}>
                 Generating summary...
               </Typography>
             </FlexBox>
@@ -805,17 +994,9 @@ const codeChangesSeries = useMemo(() => {
               {error}
             </Alert>
           ) : summary ? (
-            <Paper 
-              elevation={0} 
-              sx={{
-                p: 2,
-                bgcolor: alpha(theme.colors.primary.lighter, 0.1),
-                borderRadius: 1,
-                border: `1px solid ${alpha(theme.colors.primary.main, 0.2)}`
-              }}
-            >
-              <div dangerouslySetInnerHTML={{ __html: summary.replace(/•/g, '<br/>•').replace(/\n/g, '<br/>') }} />
-            </Paper>
+            <Box sx={{ pt: 1 }}>
+              {formatSummaryContent(summary)}
+            </Box>
           ) : (
             <Typography variant="body2" color="textSecondary">
               No summary available.
