@@ -14,6 +14,7 @@ import {
   InputAdornment,
   MenuItem,
   Select,
+  Skeleton,
   Tab,
   TextField,
   useTheme
@@ -87,7 +88,7 @@ export const AIAnalysis = () => {
     [response, savedSummary]
   );
 
-  const selectedModel = useEasyState<Model>(Model.GPT4o);
+  const selectedModel = useEasyState<Model>(Model.GEMINI);
   const token = useEasyState<string>('');
   const selectedTab = useEasyState<string>(
     String(AnalysisTabs.dora_compiled_summary)
@@ -103,7 +104,7 @@ export const AIAnalysis = () => {
     depFn(token.set, savedToken);
   }, [prevSavedToken, savedToken, token.set, token.value]);
 
-  const handleGenerate = () => {
+  const generateAnalysis = () => {
     loadData({
       method: 'POST',
       data: {
@@ -112,33 +113,63 @@ export const AIAnalysis = () => {
       }
     })
       .then((r) => {
-        dispatch(
-          doraMetricsSlice.actions.setAiSummary({
-            summary: r.data,
-            token: ''
-          })
-        );
-        selectedTab.set(String(AnalysisTabs.dora_trend_summary));
+        if (r && r.data) {
+          dispatch(
+            doraMetricsSlice.actions.setAiSummary({
+              summary: r.data,
+              token: ''
+            })
+          );
+          selectedTab.set(String(AnalysisTabs.dora_compiled_summary));
+        }
       })
       .catch((r: AxiosError) => {
-        let errorMessage = 'Something went wrong!';
-        
-        if (r.response?.data) {
-          const responseData = r.response.data as any;
-          if (responseData.message) {
-            errorMessage = responseData.message;
+        if (r && r.response && r.response.status >= 400) {
+          let errorMessage = 'Something went wrong!';
+          
+          if (r.response?.data) {
+            const responseData = r.response.data as any;
+            if (responseData.message) {
+              errorMessage = responseData.message;
+            }
           }
+          
+          enqueueSnackbar(errorMessage, {
+            variant: 'error',
+            anchorOrigin: {
+              horizontal: 'right',
+              vertical: 'bottom'
+            }
+          });
         }
-        
-        enqueueSnackbar(errorMessage, {
-          variant: 'error',
-          anchorOrigin: {
-            horizontal: 'right',
-            vertical: 'bottom'
-          }
-        });
       });
   };
+
+  useEffect(() => {
+    if (doraData && !data && !loadingData) {
+      generateAnalysis();
+    }
+  }, [doraData, data, loadingData]);
+
+  useEffect(() => {
+    if (doraData && !loadingData) {
+      generateAnalysis();
+    }
+  }, [selectedModel.value]);
+
+  const renderSkeletonLoader = () => (
+    <FlexBox col sx={{ width: '100%', px: 2 }}>
+      <Skeleton variant="rounded" width="100%" height={60} sx={{ mb: 2 }} />
+      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="95%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="90%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="85%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" width="92%" height={30} sx={{ mb: 2 }} />
+      <Skeleton variant="rounded" width="100%" height={60} />
+    </FlexBox>
+  );
 
   return (
     <FlexBox
@@ -146,9 +177,9 @@ export const AIAnalysis = () => {
       gap1
       sx={{ ['[data-lastpass-icon-root]']: { display: 'none' } }}
     >
-      <FlexBox gap1 fullWidth>
+      <FlexBox justifyContent="flex-end" alignItems="center" gap={1}>
         <Select
-          value={selectedModel.value || models?.[0] || Model.GPT4o}
+          value={selectedModel.value || models?.[0] || Model.GEMINI}
           renderValue={(m) => modelLabelsMap[m as Model] || m}
           onChange={(e) => selectedModel.set(e.target.value as Model)}
           startAdornment={
@@ -156,9 +187,14 @@ export const AIAnalysis = () => {
               <InputAdornment position="start">
                 <CircularProgress size={theme.spacing(1.5)} />
               </InputAdornment>
-            ) : null
+            ) : (
+              <InputAdornment position="start">
+                {modelIconMap[selectedModel.value as Model]}
+              </InputAdornment>
+            )
           }
-          sx={{ flex: 1 }}
+          sx={{ width: 220 }}
+          size="small"
         >
           {models?.map((m) => (
             <MenuItem value={m} key={m}>
@@ -169,26 +205,15 @@ export const AIAnalysis = () => {
             </MenuItem>
           ))}
         </Select>
-        <Button
-          onClick={handleGenerate}
-          disabled={loadingData}
-          endIcon={
-            loadingData ? (
-              <CircularProgress size={theme.spacing(1.5)} />
-            ) : (
-              <AutoAwesomeRounded />
-            )
-          }
-          sx={{ pl: 1.5 }}
-          variant="contained"
-        >
-          Generate!
-        </Button>
       </FlexBox>
       <FlexBox col gap1>
-        {!data ? (
-          <FlexBox col overflow="hidden">
-            <Line>Select a model and click "Generate". API keys need to be added to your environment variables.</Line>
+        {loadingData ? (
+          <FlexBox col overflow="hidden" alignCenter justifyCenter sx={{ minHeight: 350 }}>
+            {renderSkeletonLoader()}
+          </FlexBox>
+        ) : !data ? (
+          <FlexBox col overflow="hidden" alignCenter justifyCenter sx={{ minHeight: 350 }}>
+            <Line>AI summary will appear here when available. API keys need to be added to your environment variables.</Line>
             <FlexBox
               position="absolute"
               sx={{
@@ -248,9 +273,11 @@ export const AIAnalysis = () => {
                     onClick={() =>
                       selectedTab.set((n) =>
                         String(
-                          n === String(AnalysisTabs.dora_trend_summary)
-                            ? AnalysisTabs.mean_time_to_recovery_trends_summary
-                            : Number(n) - 1
+                          Math.max(
+                            0,
+                            Number(n) -
+                              1
+                          )
                         )
                       )
                     }
@@ -258,21 +285,53 @@ export const AIAnalysis = () => {
                     <ChevronLeftRounded />
                   </IconButton>
                   <TabList
-                    onChange={(_, n) => selectedTab.set(n)}
-                    sx={{ mt: 1, flex: 1 }}
+                    onChange={(_, val) => selectedTab.set(val)}
+                    sx={{ flex: 1 }}
+                    variant="scrollable"
+                    scrollButtons="auto"
                   >
-                    <Tab label="Summary" value="0" />
-                    <Tab label="Trends" value="1" />
-                    <Tab label="Lead Time" value="2" />
-                    <Tab label="Deployments" value="3" />
-                    <Tab label="Failure Rate" value="4" />
-                    <Tab label="Recovery Time" value="5" />
+                    <Tab
+                      label="DORA Overview"
+                      value={String(AnalysisTabs.dora_compiled_summary)}
+                    />
+                    <Tab
+                      label="DORA Trends"
+                      value={String(AnalysisTabs.dora_trend_summary)}
+                    />
+                    <Tab
+                      label="Lead Time"
+                      value={String(AnalysisTabs.lead_time_trends_summary)}
+                    />
+                    <Tab
+                      label="Deployment Frequency"
+                      value={String(
+                        AnalysisTabs.deployment_frequency_trends_summary
+                      )}
+                    />
+                    <Tab
+                      label="Change Failure Rate"
+                      value={String(
+                        AnalysisTabs.change_failure_rate_trends_summary
+                      )}
+                    />
+                    <Tab
+                      label="Time to Recovery"
+                      value={String(
+                        AnalysisTabs.mean_time_to_recovery_trends_summary
+                      )}
+                    />
                   </TabList>
-
                   <IconButton
                     size="small"
                     onClick={() =>
-                      selectedTab.set((n) => String((Number(n) + 1) % 6))
+                      selectedTab.set((n) =>
+                        String(
+                          Math.min(
+                            Object.keys(AnalysisTabs).length / 2 - 1,
+                            Number(n) + 1
+                          )
+                        )
+                      )
                     }
                   >
                     <ChevronRightRounded />
