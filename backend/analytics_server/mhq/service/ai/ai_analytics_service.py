@@ -28,7 +28,7 @@ class AIAnalyticsService:
         LLM.GPT4o: "gpt-4o-mini",
         LLM.LLAMA3p1450B: "accounts/fireworks/models/llama-v3p1-405b-instruct",
         LLM.LLAMA3p170B: "accounts/fireworks/models/llama-v3p1-70b-instruct",
-        LLM.GEMINI: "gemini-2.0-flash-lite"
+        LLM.GEMINI: "gemini-2.0-flash"
     }
 
     def __init__(self, llm: LLM, access_token: str = None):

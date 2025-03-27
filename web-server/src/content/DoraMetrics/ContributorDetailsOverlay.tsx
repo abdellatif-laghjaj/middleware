@@ -1,8 +1,9 @@
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useEffect } from 'react';
 import { 
   Avatar, Box, Button, Chip, Divider, Grid, Paper, Tooltip, 
   Typography, useTheme, LinearProgress, IconButton, Link,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Alert, CircularProgress
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { 
@@ -10,7 +11,8 @@ import {
   CheckCircle, Error as ErrorIcon, GitHub, OpenInNew,
   TrendingUp, TrendingDown, Commit, CompareArrows, Code,
   Comment, Group, Speed, Equalizer, AssignmentTurnedIn,
-  Assessment, ShowChart, BarChart, ArrowUpward, ArrowDownward
+  Assessment, ShowChart, BarChart, ArrowUpward, ArrowDownward,
+  AutoAwesome
 } from '@mui/icons-material';
 
 import { Chart2, ChartOptions } from '@/components/Chart2';
@@ -21,6 +23,7 @@ import { getGHAvatar } from '@/utils/user';
 import { useSelector } from '@/store';
 import { format } from 'date-fns';
 import { getDurationString } from '@/utils/date';
+import { useContributorSummary } from '@/hooks/useContributorSummary';
 
 interface ContributorDetailsProps {
   contributor: ContributorData;
@@ -71,6 +74,9 @@ export const ContributorDetailsOverlay: FC<ContributorDetailsProps> = ({
   const allPrs = useSelector(state => state.doraMetrics.summary_prs || []);
   const allDeployments = useSelector(state => state.doraMetrics.all_deployments || []);
   
+  // Get AI summary hook
+  const { summary, isLoading, error, generateSummary } = useContributorSummary();
+  
   // Filter by contributor - memoized to prevent unnecessary processing
   const contributorPrs = useMemo(() => {
     return allPrs.filter(pr => 
@@ -83,6 +89,13 @@ export const ContributorDetailsOverlay: FC<ContributorDetailsProps> = ({
       deployment.event_actor?.username === contributor.username
     ).slice(0, 5);
   }, [allDeployments, contributor.username]);
+
+  // Generate AI summary when the overlay is opened
+  useEffect(() => {
+    if (contributor) {
+      generateSummary(contributor);
+    }
+  }, [contributor, generateSummary]);
 
   // Determine if activity is increasing or decreasing based on actual PR and commit data
   const isActivityIncreasing = useMemo(() => {
@@ -768,6 +781,45 @@ const codeChangesSeries = useMemo(() => {
                 No recent deployments found
               </Typography>
             </FlexBox>
+          )}
+        </Paper>
+      </Grid>
+
+      {/* AI-powered summary section - MOVED HERE */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2 }}>
+          <FlexBox gap={1} alignCenter mb={3}>
+            <AutoAwesome color="primary" />
+            <Typography variant="h6">AI-Powered Contributor Summary</Typography>
+          </FlexBox>
+          
+          {isLoading ? (
+            <FlexBox alignCenter justifyCenter sx={{ py: 2 }}>
+              <CircularProgress size={24} />
+              <Typography variant="body2" sx={{ ml: 2 }}>
+                Generating summary...
+              </Typography>
+            </FlexBox>
+          ) : error ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          ) : summary ? (
+            <Paper 
+              elevation={0} 
+              sx={{
+                p: 2,
+                bgcolor: alpha(theme.colors.primary.lighter, 0.1),
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.colors.primary.main, 0.2)}`
+              }}
+            >
+              <div dangerouslySetInnerHTML={{ __html: summary.replace(/•/g, '<br/>•').replace(/\n/g, '<br/>') }} />
+            </Paper>
+          ) : (
+            <Typography variant="body2" color="textSecondary">
+              No summary available.
+            </Typography>
           )}
         </Paper>
       </Grid>

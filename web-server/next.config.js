@@ -64,6 +64,12 @@ const staticOverrides = {
   async rewrites() {
     return [
       {
+        source: '/api/ai/:path*',
+        destination: process.env.ANALYTICS_SERVER_URL 
+          ? `${process.env.ANALYTICS_SERVER_URL}/ai/:path*` 
+          : 'http://localhost:9696/ai/:path*'
+      },
+      {
         source: '/api/tunnel/logrocket/:path*',
         destination: 'https://r.lr-in.com/:path*'
       },

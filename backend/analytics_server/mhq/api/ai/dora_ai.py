@@ -1,6 +1,6 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from mhq.api.request_utils import dataschema
-from voluptuous import Required, Schema, Coerce, All
+from voluptuous import Required, Schema, Coerce, All, Optional
 from mhq.service.ai.ai_analytics_service import AIAnalyticsService, LLM
 import os
 import logging
@@ -304,4 +304,91 @@ def get_ai_dora_summary(data: dict, model: str):
         return jsonify({
             "status": "error", 
             "message": f"Error processing request: {str(e)}"
+        }), 500
+
+@app.route("/ai/contributor-summary", methods={"POST"})
+@dataschema(
+    Schema(
+        {
+            Required("contributor_data"): dict,
+            Optional("model"): str,
+        }
+    )
+)
+def generate_contributor_summary(contributor_data, model=LLM.GEMINI.value):
+    """
+    Generate an AI-powered summary of a contributor's activity and impact.
+    
+    Args:
+        contributor_data: Dictionary containing contributor metrics and activity
+        model: AI model to use for generation (defaults to Gemini)
+    
+    Returns:
+        JSON response with the generated summary
+    """
+    try:
+        # Determine which model to use
+        model_enum = LLM.GEMINI
+        try:
+            model_enum = LLM(model)
+        except ValueError:
+            logger.warning(f"Invalid model {model}, falling back to {LLM.GEMINI}")
+        
+        # Get API key for the model
+        api_key = get_api_key_for_model(model_enum)
+        
+        # Handle missing API key gracefully
+        if not api_key:
+            return jsonify({
+                "status": "error",
+                "message": "API key not found for the selected model",
+                "fallback_text": "Contributor summary not available. Please check your AI service configuration."
+            }), 400
+            
+        # Prepare the prompt for the AI model
+        name = contributor_data.get('name', 'This contributor')
+        username = contributor_data.get('username', 'unknown')
+        
+        prompt = f"""
+        Generate a concise, professional summary of this contributor's activity and impact:
+
+        Name: {name} ({username})
+        PRs Created: {contributor_data.get('prs', 0)}
+        Deployments: {contributor_data.get('deploymentCount', 0)}
+        Successful Deployments: {contributor_data.get('successfulDeployments', 0)}
+        Failed Deployments: {contributor_data.get('failedDeployments', 0)}
+        Lead Time for Changes: {contributor_data.get('leadTimeFormatted', 'N/A')}
+        Additions: {contributor_data.get('additions', 0)}
+        Deletions: {contributor_data.get('deletions', 0)}
+        Merge Time: {contributor_data.get('mergeTimeFormatted', 'N/A')}
+        Rework Time: {contributor_data.get('reworkTimeFormatted', 'N/A')}
+        
+        So based on this data, please generate a summary of the contributor's activity and impact. (because the reviers/,aninteris of project will see this) so it should be impactlfuu summary to help them optimse the performance of the project.
+        """
+        
+        # Initialize the AI service and get a response
+        ai_service = AIAnalyticsService(model_enum, api_key)
+        messages = [{"role": "user", "content": prompt}]
+        response = ai_service._fetch_completion(messages)
+        
+        if response.get("status") == "success":
+            return jsonify({
+                "status": "success",
+                "summary": response.get("data", "No summary generated")
+            })
+        else:
+            # Log the error but return a user-friendly message
+            logger.error(f"Error generating summary: {response.get('message')}")
+            return jsonify({
+                "status": "error",
+                "message": "Unable to generate summary",
+                "fallback_text": "Summary generation failed. Please try again later."
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Exception in contributor summary generation: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": str(e),
+            "fallback_text": "An error occurred while generating the summary."
         }), 500
