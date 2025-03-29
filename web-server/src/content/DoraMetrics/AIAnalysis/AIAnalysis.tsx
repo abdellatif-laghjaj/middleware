@@ -22,7 +22,8 @@ import {
   ToggleButtonGroup,
   Tooltip,
   Typography,
-  useTheme
+  useTheme,
+  Box
 } from '@mui/material';
 import { AxiosError } from 'axios';
 import copy from 'copy-to-clipboard';
@@ -35,6 +36,7 @@ import gfm from 'remark-gfm';
 import v from 'voca';
 import { SiGooglegemini } from 'react-icons/si';
 import { TbRobot, TbChartDots, TbBraces, TbAlertCircle, TbDeviceAnalytics, TbMessageChatbot } from 'react-icons/tb';
+import { alpha } from '@mui/material/styles';
 
 import { FlexBox } from '@/components/FlexBox';
 import { Line } from '@/components/Text';
@@ -241,15 +243,28 @@ export const AIAnalysis = () => {
 
   const renderSkeletonLoader = () => (
     <FlexBox col sx={{ width: '100%', px: 2 }}>
-      <Skeleton variant="rounded" width="100%" height={60} sx={{ mb: 2 }} />
-      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="95%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="90%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="85%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="100%" height={30} sx={{ mb: 1 }} />
-      <Skeleton variant="rounded" width="92%" height={30} sx={{ mb: 2 }} />
-      <Skeleton variant="rounded" width="100%" height={60} />
+      <FlexBox alignCenter justifyCenter sx={{ py: 4 }}>
+        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+          <CircularProgress size={40} />
+          <Box
+            sx={{
+              top: 0,
+              left: 0,
+              bottom: 0,
+              right: 0,
+              position: 'absolute',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AutoAwesomeRounded style={{ fontSize: 20, color: theme.colors.primary.main }} />
+          </Box>
+        </Box>
+        <Typography variant="body1" sx={{ ml: 2, fontWeight: 500 }}>
+          Generating AI response...
+        </Typography>
+      </FlexBox>
     </FlexBox>
   );
 
