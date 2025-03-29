@@ -411,15 +411,16 @@ export const AIAnalysis = () => {
           sx={{ 
             '.MuiToggleButton-root': { 
               textTransform: 'none', 
-              px: 3 
+              px: 3,
+              py: 1.2
             }
           }}
         >
           <ToggleButton value={AIMode.ANALYTICS}>
-            <TbDeviceAnalytics style={{ marginRight: 8 }} /> AI Analytics
+            <AutoAwesomeRounded style={{ marginRight: 8, fontSize: 24 }} /> AI Analytics
           </ToggleButton>
           <ToggleButton value={AIMode.AGENT}>
-            <TbRobot style={{ marginRight: 8 }} /> AI Agent
+            <SmartToyOutlined style={{ marginRight: 8, fontSize: 24 }} /> AI Agent
           </ToggleButton>
         </ToggleButtonGroup>
         
