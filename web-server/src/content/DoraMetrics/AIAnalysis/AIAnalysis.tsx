@@ -344,7 +344,12 @@ export const AIAnalysis = () => {
                 variant="contained" 
                 onClick={handleAgentQuery} 
                 disabled={!agentQuery.trim() || loadingAgentResponse}
-                startIcon={loadingAgentResponse ? <CircularProgress size={20} /> : <SmartToyOutlined />}
+                startIcon={loadingAgentResponse ? <CircularProgress size={20} /> : <AutoAwesomeRounded />}
+                sx={{ 
+                  minWidth: '160px',
+                  whiteSpace: 'nowrap',
+                  flex: '0 0 auto'
+                }}
               >
                 {loadingAgentResponse ? 'Analyzing...' : 'Ask AI Agent'}
               </Button>
