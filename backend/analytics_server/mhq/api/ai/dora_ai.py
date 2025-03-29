@@ -4,6 +4,7 @@ from voluptuous import Required, Schema, Coerce, All, Optional
 from mhq.service.ai.ai_analytics_service import AIAnalyticsService, LLM
 import os
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -410,4 +411,162 @@ def generate_contributor_summary(contributor_data, model=LLM.GEMINI.value):
             "status": "error", 
             "message": str(e),
             "fallback_text": "An error occurred while generating the summary."
+        }), 500
+
+@app.route("/ai/dora_agent", methods={"POST"})
+@dataschema(
+    Schema(
+        {
+            Required("feature"): str,
+            Required("query"): str,
+            Required("model"): str,
+            Required("data"): dict,
+        }
+    ),
+)
+def get_ai_agent_response(feature: str, query: str, model: str, data: dict):
+    """
+    Handle AI agent queries based on the feature type with real AI model responses.
+    
+    Args:
+        feature: The type of AI agent feature (code_quality, performance_prediction, etc.)
+        query: The user's query string
+        model: The LLM model to use
+        data: The DORA metrics data or other contextual data
+        
+    Returns:
+        The AI agent's response
+    """
+    try:
+        model_enum = getattr(LLM, model)
+        access_token = get_api_key_for_model(model_enum)
+        if not access_token:
+            return jsonify({
+                "status": "error", 
+                "message": f"No API key available for {model}. Please add it to your environment variables."
+            }), 400
+        
+        ai_service = AIAnalyticsService(model_enum, access_token)
+        
+        # Create feature-specific prompts for the AI model
+        prompt_templates = {
+            "code_quality": """
+You are an AI code quality analysis agent for a DevOps platform. Analyze the following DORA metrics data to provide insights on code quality.
+
+USER QUERY: {query}
+
+DORA METRICS DATA:
+{data_json}
+
+Please provide a detailed analysis of code quality trends and actionable recommendations. Focus on:
+1. Identifying potential code quality issues based on the data
+2. Suggesting specific improvements to coding practices
+3. Highlighting technical debt hotspots if present
+4. Connecting code quality to deployment performance
+5. Recommending testing strategies to improve reliability
+
+Format your response using Markdown with clear sections and bullet points.
+""",
+            "performance_prediction": """
+You are an AI team performance prediction agent for a DevOps platform. Analyze the DORA metrics and predict future performance.
+
+USER QUERY: {query}
+
+DORA METRICS DATA:
+{data_json}
+
+Please provide a detailed prediction of future team performance based on this historical data. Focus on:
+1. Forecasting future trends for deployment frequency, lead time, change failure rate, and mean time to recovery
+2. Identifying potential bottlenecks or areas of improvement
+3. Suggesting specific actions to improve DORA metrics
+4. Highlighting team strengths based on the data
+5. Comparing current performance to industry benchmarks where relevant
+
+Format your response using Markdown with clear sections, bullet points, and if possible, numerical projections.
+""",
+            "incident_response": """
+You are an AI incident response assistant for a DevOps platform. Analyze the metrics to provide insights on incident management.
+
+USER QUERY: {query}
+
+DORA METRICS DATA:
+{data_json}
+
+Please provide detailed recommendations for incident response and prevention. Focus on:
+1. Analyzing patterns in past incidents
+2. Identifying the most common types of failures
+3. Suggesting team member roles for addressing specific types of incidents
+4. Recommending preventative measures to avoid similar incidents in the future
+5. Suggesting improvements to the incident response process
+
+Format your response using Markdown with clear sections and bullet points.
+""",
+            "workflow_optimization": """
+You are an AI workflow optimization agent for a DevOps platform. Analyze the metrics to identify inefficiencies and suggest improvements.
+
+USER QUERY: {query}
+
+DORA METRICS DATA:
+{data_json}
+
+Please provide detailed recommendations for optimizing developer workflows. Focus on:
+1. Identifying bottlenecks in the development pipeline
+2. Analyzing inefficiencies in the code review process
+3. Suggesting improvements to CI/CD processes
+4. Recommending automation opportunities
+5. Identifying ways to reduce lead time and increase deployment frequency
+
+Format your response using Markdown with clear sections and bullet points.
+""",
+            "conversation": """
+You are an AI conversational assistant for a DevOps platform. Answer the following question about team performance based on the provided data.
+
+USER QUESTION: {query}
+
+DORA METRICS DATA:
+{data_json}
+
+Please provide a clear, concise answer that directly addresses the user's question. Use specific data points from the provided metrics. Format your response using Markdown where appropriate, but prioritize direct and simple language that's easy to understand.
+"""
+        }
+        
+        # Select the appropriate prompt based on the feature type
+        prompt_template = prompt_templates.get(feature)
+        if not prompt_template:
+            return jsonify({
+                "status": "error", 
+                "message": f"Invalid feature type: {feature}"
+            }), 400
+        
+        # Format the prompt with the query and data
+        data_json = json.dumps(data, indent=2)
+        formatted_prompt = prompt_template.format(query=query, data_json=data_json)
+        
+        # Create messages for the AI model
+        messages = [{"role": "user", "content": formatted_prompt}]
+        
+        # Call the AI service to get a response
+        response = ai_service._fetch_completion(messages)
+        
+        if response.get("status") == "success":
+            return {"response": response.get("data", "No response generated")}
+        else:
+            logger.error(f"Error getting AI response: {response.get('message')}")
+            return jsonify({
+                "status": "error", 
+                "message": "Failed to get AI response",
+                "fallback_text": "Sorry, I couldn't generate a response. Please try again later."
+            }), 500
+        
+    except (AttributeError, ValueError) as e:
+        logger.error(f"Error in get_ai_agent_response: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Invalid model: {model}. Please select a valid model."
+        }), 400
+    except Exception as e:
+        logger.error(f"Error in get_ai_agent_response: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": f"Error processing request: {str(e)}"
         }), 500
