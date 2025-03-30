@@ -23,7 +23,9 @@ import {
   Tooltip,
   Typography,
   useTheme,
-  Box
+  Box,
+  Chip,
+  Grid
 } from '@mui/material';
 import { AxiosError } from 'axios';
 import copy from 'copy-to-clipboard';
@@ -71,6 +73,35 @@ export enum AgentFeature {
   WORKFLOW_OPTIMIZATION = 'workflow_optimization',
   CONVERSATION = 'conversation'
 }
+
+// Example prompts for each feature type
+const featureExamplePrompts: Record<AgentFeature, string[]> = {
+  [AgentFeature.CODE_QUALITY]: [
+    "What are the main code quality issues in our codebase?",
+    "How can we improve our test coverage based on the metrics?",
+    "Where are the technical debt hotspots in our repositories?"
+  ],
+  [AgentFeature.PERFORMANCE_PREDICTION]: [
+    "What will our deployment frequency be next month based on current trends?",
+    "Will our lead time improve or worsen in the coming weeks?",
+    "How will our change failure rate evolve if we maintain our current practices?"
+  ],
+  [AgentFeature.INCIDENT_RESPONSE]: [
+    "What patterns do you see in our past incidents?",
+    "How can we reduce our mean time to recovery?",
+    "What preventative measures would help us avoid the most common failures?"
+  ],
+  [AgentFeature.WORKFLOW_OPTIMIZATION]: [
+    "Where are the main bottlenecks in our development pipeline?",
+    "How can we improve our code review process based on the metrics?",
+    "What automation opportunities should we prioritize in our workflow?"
+  ],
+  [AgentFeature.CONVERSATION]: [
+    "Are we performing better or worse than industry standards?",
+    "What's the most concerning trend in our DORA metrics right now?",
+    "How does our team compare to others in terms of deployment frequency?"
+  ]
+};
 
 const openAiModels = new Set([Model.GPT4o]);
 const llamaModels = new Set([Model.LLAMA3p1450B, Model.LLAMA3p170B]);
@@ -221,18 +252,29 @@ export const AIAnalysis = () => {
   const handleAgentQuery = async () => {
     if (!agentQuery.trim()) return;
     
-    // Call the generateResponse method from our hook
-    await generateResponse(
-      selectedAgentFeature,
-      agentQuery,
-      selectedModel.value,
-      doraData || {}
-    );
-    
-    // Show success notification if no error
-    if (!agentError) {
-      enqueueSnackbar('AI agent response received!', {
-        variant: 'success',
+    try {
+      // Call the generateResponse method from our hook
+      await generateResponse(
+        selectedAgentFeature,
+        agentQuery,
+        selectedModel.value,
+        doraData || {}
+      );
+      
+      // Show success notification if response is received without errors
+      if (!agentError) {
+        enqueueSnackbar('AI analysis complete!', {
+          variant: 'success',
+          anchorOrigin: {
+            horizontal: 'right',
+            vertical: 'bottom'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      enqueueSnackbar('Failed to generate AI response. Please try again.', {
+        variant: 'error',
         anchorOrigin: {
           horizontal: 'right',
           vertical: 'bottom'
@@ -268,51 +310,71 @@ export const AIAnalysis = () => {
     </FlexBox>
   );
 
-  // Render agent feature cards
-  const renderAgentFeatureCards = () => {
-    return (
-      <FlexBox gap={2} flexWrap="wrap" justifyContent="center" sx={{ mt: 2 }}>
+  const renderFeatureSelection = () => (
+    <Box sx={{ mt: 2 }}>
+      <Grid container spacing={3}>
         {Object.values(AgentFeature).map((feature) => (
-          <Card 
-            key={feature}
-            sx={{
-              width: 220,
-              p: 2,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              border: feature === selectedAgentFeature ? `2px solid ${theme.colors.primary.main}` : '2px solid transparent',
-              backgroundColor: feature === selectedAgentFeature ? theme.colors.primary.lighter : 'transparent',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: theme.shadows[10]
-              }
-            }}
-            onClick={() => setSelectedAgentFeature(feature)}
-          >
-            <FlexBox col alignItems="center" gap={1}>
-              <FlexBox 
-                justifyContent="center" 
-                alignItems="center" 
-                sx={{ 
-                  width: 50, 
-                  height: 50, 
-                  borderRadius: '50%', 
-                  backgroundColor: theme.colors.primary.lighter,
-                  color: theme.colors.primary.main
-                }}
-              >
-                {agentFeatureIconMap[feature]}
-              </FlexBox>
-              <Typography variant="h5" textAlign="center">{agentFeatureLabelMap[feature]}</Typography>
-              <Typography variant="body2" textAlign="center" color="text.secondary">
-                {agentFeatureDescriptionMap[feature]}
-              </Typography>
-            </FlexBox>
-          </Card>
+          <Grid item xs={12} sm={6} md={4} lg={2.4} key={feature}>
+            {renderFeatureCard(feature)}
+          </Grid>
         ))}
-      </FlexBox>
-    );
-  };
+      </Grid>
+    </Box>
+  );
+
+  // Render individual feature card
+  const renderFeatureCard = (feature: AgentFeature) => (
+    <Card
+      onClick={() => setSelectedAgentFeature(feature)}
+      sx={{
+        p: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease-in-out',
+        border: `1px solid ${selectedAgentFeature === feature 
+          ? theme.colors.primary.main 
+          : theme.colors.alpha.black[10]}`,
+        backgroundColor: selectedAgentFeature === feature 
+          ? alpha(theme.colors.primary.lighter, 0.15)
+          : 'transparent',
+        boxShadow: selectedAgentFeature === feature 
+          ? `0 0 20px ${alpha(theme.colors.primary.main, 0.2)}`
+          : 'none',
+        '&:hover': {
+          backgroundColor: selectedAgentFeature === feature 
+            ? alpha(theme.colors.primary.lighter, 0.15)
+            : alpha(theme.colors.primary.lighter, 0.05),
+          transform: 'translateY(-4px)',
+          boxShadow: `0 8px 16px ${alpha(theme.colors.primary.main, 0.1)}`
+        }
+      }}
+    >
+      <Box
+        sx={{ 
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 56, 
+          height: 56, 
+          borderRadius: '50%',
+          backgroundColor: alpha(theme.colors.primary.main, 0.1),
+          color: theme.colors.primary.main,
+          mb: 2,
+          fontSize: 24
+        }}
+      >
+        {agentFeatureIconMap[feature]}
+      </Box>
+      <Typography variant="h5" gutterBottom>
+        {agentFeatureLabelMap[feature]}
+      </Typography>
+      <Typography variant="body2" color="textSecondary" sx={{ flexGrow: 1 }}>
+        {agentFeatureDescriptionMap[feature]}
+      </Typography>
+    </Card>
+  );
 
   // Render agent interface based on selected feature
   const renderAgentInterface = () => {
@@ -328,6 +390,32 @@ export const AIAnalysis = () => {
               {agentFeatureDescriptionMap[selectedAgentFeature]}
             </Typography>
             
+            {/* Example prompts */}
+            <Box sx={{ mt: 1, mb: 1 }}>
+              <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 1 }}>
+                Try these examples:
+              </Typography>
+              <FlexBox gap={1} flexWrap="wrap">
+                {featureExamplePrompts[selectedAgentFeature].map((prompt, index) => (
+                  <Chip
+                    key={index}
+                    label={prompt}
+                    clickable
+                    color="primary"
+                    variant="outlined"
+                    onClick={() => setAgentQuery(prompt)}
+                    sx={{ 
+                      mb: 1,
+                      '& .MuiChip-label': { 
+                        whiteSpace: 'normal',
+                        textAlign: 'left'
+                      }
+                    }}
+                  />
+                ))}
+              </FlexBox>
+            </Box>
+            
             <FlexBox gap={1}>
               <TextField
                 fullWidth
@@ -339,6 +427,13 @@ export const AIAnalysis = () => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAgentQuery(e.target.value)}
                 onKeyPress={(e: React.KeyboardEvent) => e.key === 'Enter' && handleAgentQuery()}
                 disabled={loadingAgentResponse}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      {agentFeatureIconMap[selectedAgentFeature]}
+                    </InputAdornment>
+                  ),
+                }}
               />
               <Button 
                 variant="contained" 
@@ -634,7 +729,7 @@ export const AIAnalysis = () => {
         </FlexBox>
       ) : (
         <FlexBox col>
-          {renderAgentFeatureCards()}
+          {renderFeatureSelection()}
           {renderAgentInterface()}
         </FlexBox>
       )}
