@@ -542,7 +542,10 @@ const codeChangesSeries = useMemo(() => {
       {/* Stats Overview */}
       <Grid item xs={12} md={8}>
         <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
-          <Typography variant="h6" gutterBottom>Contribution Overview</Typography>
+          <FlexBox gap={1} alignCenter mb={2}>
+            <Equalizer color="primary" />
+            <Typography variant="h6">Contribution Overview</Typography>
+          </FlexBox>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={6} sm={3}>
               <FlexBox col alignCenter>
@@ -644,9 +647,6 @@ const codeChangesSeries = useMemo(() => {
               </Paper>
             </Grid>
           </Grid>
-
-          {/* Recent Activity Chart Title */}
-          <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>Recent Commit Activity</Typography>
         </Paper>
       </Grid>
 
@@ -655,26 +655,26 @@ const codeChangesSeries = useMemo(() => {
         <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
           <FlexBox gap={1} alignCenter mb={2}>
             <Assessment color="primary" />
-            <Typography variant="h6">DORA Performance Metrics</Typography>
+            <Typography variant="h6">Team Contribution Metrics</Typography>
           </FlexBox>
           
-          {contributor.doraScore !== undefined && (
+          {contributor.doraPercentage !== undefined && (
             <Box sx={{ mb: 3, mt: 2 }}>
               <FlexBox justifyBetween alignCenter mb={1}>
-                <Typography variant="body2" color="textSecondary">Overall Score</Typography>
-                <Typography variant="body2" fontWeight="bold" sx={{ color: getDoraScoreColor(contributor.doraScore) }}>
-                  {getDoraScoreLabel(contributor.doraScore)}
+                <Typography variant="body2" color="textSecondary">Contribution Rate</Typography>
+                <Typography variant="body2" fontWeight="bold" sx={{ color: getDoraScoreColor(contributor.doraScore || 0) }}>
+                  {contributor.doraPercentage}%
                 </Typography>
               </FlexBox>
               <LinearProgress 
                 variant="determinate" 
-                value={contributor.doraScore} 
+                value={contributor.doraPercentage} 
                 sx={{ 
                   height: 8, 
                   borderRadius: 4,
                   bgcolor: alpha(theme.colors.primary.main, 0.1),
                   '& .MuiLinearProgress-bar': {
-                    bgcolor: getDoraScoreColor(contributor.doraScore)
+                    bgcolor: getDoraScoreColor(contributor.doraScore || 0)
                   }
                 }} 
               />
@@ -757,15 +757,21 @@ const codeChangesSeries = useMemo(() => {
       
       {/* Commit History Chart */}
       <Grid item xs={12} md={8}>
-        <Paper sx={{ p: 0, borderRadius: 2, height: '100%', overflow: 'hidden' }}>
-          <Chart2
-            height={260}
-            id="commit-history-chart"
-            type="line"
-            options={chartOptions}
-            series={commitHistorySeries}
-            labels={commitHistoryLabels}
-          />
+        <Paper sx={{ p: 3, pt: 2, borderRadius: 2, height: '100%', overflow: 'hidden' }}>
+          <FlexBox gap={1} alignCenter mb={2}>
+            <Timeline color="primary" />
+            <Typography variant="h6">Recent Commit Activity</Typography>
+          </FlexBox>
+          <Box sx={{ pt: 1, pb: 2, px: 2 }}>
+            <Chart2
+              height={230}
+              id="commit-history-chart"
+              type="line"
+              options={chartOptions}
+              series={commitHistorySeries}
+              labels={commitHistoryLabels}
+            />
+          </Box>
         </Paper>
       </Grid>
       

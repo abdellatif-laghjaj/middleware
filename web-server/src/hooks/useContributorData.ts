@@ -28,9 +28,11 @@ export interface ContributorData {
   reviewersList?: Array<{username: string; name: string; count: number}>;
   changeCycles?: number;
   doraScore?: number;
+  doraPercentage?: number;
   deployFrequency?: number;
   changeFailureRate?: number;
   timeToRestore?: number;
+  weightedDoraScore?: number;
 }
 
 // Bot usernames commonly used in GitHub
@@ -334,8 +336,105 @@ export const useContributorData = () => {
     });
     
     // Convert map to array and sort by contributions (descending)
-    return Array.from(contributorsMap.values())
+    const contributorsArray = Array.from(contributorsMap.values())
       .sort((a, b) => b.contributions - a.contributions);
+    
+    // Calculate DORA percentage distribution using a more complex weighted formula
+    if (contributorsArray.length > 0) {
+      // Calculate weighted contribution score for each contributor
+      contributorsArray.forEach(contributor => {
+        // Base weights for different metrics
+        const weights = {
+          prs: 0.35,                // Pull requests - high importance
+          commits: 0.20,            // Commits count - moderate importance
+          codeChanges: 0.15,        // Code changes (additions + deletions) - moderate importance
+          deploymentSuccess: 0.20,  // Deployment success rate - moderate importance
+          speedMetrics: 0.10        // Lead time and merge time - lower importance
+        };
+        
+        // Calculate weighted scores for each metric
+        let weightedScore = 0;
+        
+        // 1. Pull requests contribution
+        weightedScore += (contributor.prs || 0) * weights.prs;
+        
+        // 2. Commits contribution
+        weightedScore += (contributor.contributions || 0) * weights.commits;
+        
+        // 3. Code changes contribution (normalized to avoid huge numbers)
+        const codeChanges = (contributor.additions || 0) + (contributor.deletions || 0);
+        weightedScore += Math.min(5000, codeChanges) / 100 * weights.codeChanges;
+        
+        // 4. Deployment success (if they have deployments)
+        if (contributor.deploymentCount > 0) {
+          const successRate = contributor.successfulDeployments / contributor.deploymentCount;
+          weightedScore += successRate * 100 * weights.deploymentSuccess;
+        }
+        
+        // 5. Speed metrics - lower lead time is better
+        if (contributor.leadTime) {
+          // Convert to hours (inverse relationship - faster is better)
+          const leadTimeHours = contributor.leadTime / (1000 * 60 * 60);
+          // Cap at 168 hours (1 week) to avoid extreme penalties
+          const normalizedLeadTime = Math.min(168, leadTimeHours);
+          // Inverse scoring - lower lead time is better (max 10 points)
+          const speedScore = Math.max(0, 10 - (normalizedLeadTime / 24));
+          weightedScore += speedScore * weights.speedMetrics;
+        }
+        
+        // Store weighted score for percentage calculation
+        contributor.weightedDoraScore = weightedScore;
+      });
+      
+      // Sum all weighted scores
+      const totalWeightedScore = contributorsArray.reduce(
+        (sum, contributor) => sum + (contributor.weightedDoraScore || 0), 
+        0
+      );
+      
+      // Calculate final percentage based on weighted scores
+      if (totalWeightedScore > 0) {
+        contributorsArray.forEach(contributor => {
+          contributor.doraPercentage = Math.round(
+            ((contributor.weightedDoraScore || 0) / totalWeightedScore) * 100
+          );
+        });
+        
+        // Ensure we have at least some differentiation if scores are very close
+        // If all have the same percentage, adjust them slightly based on relative PRs
+        const allSamePercentage = contributorsArray.every(
+          c => c.doraPercentage === contributorsArray[0].doraPercentage
+        );
+        
+        if (allSamePercentage && contributorsArray.length > 1) {
+          // Create at least some differentiation based on PR count
+          const totalPrs = contributorsArray.reduce((sum, c) => sum + c.prs, 0);
+          if (totalPrs > 0) {
+            contributorsArray.forEach(contributor => {
+              contributor.doraPercentage = Math.round((contributor.prs / totalPrs) * 100);
+            });
+          }
+        }
+        
+        // Final sanity check - ensure percentages sum to 100%
+        const percentageSum = contributorsArray.reduce(
+          (sum, contributor) => sum + contributor.doraPercentage, 
+          0
+        );
+        
+        if (percentageSum !== 100 && contributorsArray.length > 0) {
+          // Adjust the highest contributor to make sum exactly 100%
+          const diff = 100 - percentageSum;
+          // Sort by doraPercentage to find highest
+          const sorted = [...contributorsArray].sort((a, b) => 
+            (b.doraPercentage || 0) - (a.doraPercentage || 0)
+          );
+          sorted[0].doraPercentage += diff;
+        }
+      }
+    }
+    
+    return contributorsArray;
   }, [prs, deployments, incidents]);
 
   // Handle loading state and updates separately in useEffect

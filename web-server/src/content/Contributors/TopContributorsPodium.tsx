@@ -259,6 +259,17 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                   </Typography>
                 </FlexBox>
               )}
+
+              {contributor.doraPercentage && (
+                <FlexBox col alignCenter>
+                  <Typography variant="h6" fontWeight="bold" color={medalColors[0]}>
+                    {contributor.doraPercentage}%
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Contribution Rate
+                  </Typography>
+                </FlexBox>
+              )}
             </FlexBox>
             
             {/* Position label */}
@@ -502,6 +513,16 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                           {contributor.prs} PRs
                         </Typography>
                       </Tooltip>
+                      {contributor.doraPercentage && (
+                        <>
+                          <Typography variant="body2" color="textSecondary">•</Typography>
+                          <Tooltip title="Team Contribution Rate">
+                            <Typography variant="body2" fontWeight="medium" color={medalColors[index]}>
+                              {contributor.doraPercentage}% Contrib
+                            </Typography>
+                          </Tooltip>
+                        </>
+                      )}
                     </FlexBox>
                     
                     {/* Position label */}

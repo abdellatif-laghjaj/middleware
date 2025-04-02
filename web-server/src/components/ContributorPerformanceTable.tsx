@@ -37,8 +37,27 @@ import { SimpleAvatar } from '@/components/SimpleAvatar';
 import { getGHAvatar } from '@/utils/user';
 import { useOverlayPage } from '@/components/OverlayPageContext';
 
+// Format large numbers to use "k" notation
+const formatNumber = (num: number): string => {
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}m`;
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}k`;
+  }
+  return num.toString();
+};
+
 type SortDirection = 'asc' | 'desc';
-type SortField = keyof ContributorData | '';
+type SortField = 
+  'name' | 
+  'contributions' | 
+  'prs' | 
+  'additions' | 
+  'deletions' | 
+  'successfulDeployments' | 
+  'doraScore' | 
+  'doraPercentage' | 
+  'leadTime';
 
 interface ContributorPerformanceTableProps {
   contributors: ContributorData[];
@@ -72,10 +91,10 @@ const ActivityChip: FC<{ contributions: number }> = ({ contributions }) => {
   );
 };
 
-const DoraScoreChip: FC<{ score?: number }> = ({ score }) => {
+const DoraScoreChip: FC<{ score?: number; percentage?: number }> = ({ score, percentage }) => {
   const theme = useTheme();
   
-  if (score === undefined) {
+  if (percentage === undefined) {
     return (
       <Chip 
         size="small" 
@@ -85,28 +104,24 @@ const DoraScoreChip: FC<{ score?: number }> = ({ score }) => {
     );
   }
   
-  let label: string;
   let color: 'success' | 'warning' | 'info' | 'error' | 'default' = 'default';
   
-  if (score >= 80) {
-    label = 'Elite';
+  // Color based on contribution percentage
+  if (percentage >= 40) {
     color = 'success';
-  } else if (score >= 60) {
-    label = 'High';
+  } else if (percentage >= 30) {
     color = 'info';
-  } else if (score >= 40) {
-    label = 'Medium';
+  } else if (percentage >= 20) {
     color = 'warning';
   } else {
-    label = 'Low';
     color = 'error';
   }
   
   return (
-    <Tooltip title={`DORA Performance Score: ${score}/100`}>
+    <Tooltip title={`Team Contribution: ${percentage}%`}>
       <Chip 
         size="small" 
-        label={label}
+        label={`${percentage}%`}
         color={color}
         icon={<Speed fontSize="small" />}
       />
@@ -306,14 +321,14 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
               </TableCell>
               <TableCell align="right">
                 <TableSortLabel
-                  active={sortField === 'doraScore'}
-                  direction={sortField === 'doraScore' ? sortDirection : 'asc'}
-                  onClick={() => handleSort('doraScore')}
+                  active={sortField === 'doraPercentage'}
+                  direction={sortField === 'doraPercentage' ? sortDirection : 'asc'}
+                  onClick={() => handleSort('doraPercentage')}
                 >
-                  <Tooltip title="Sort by DORA performance score">
+                  <Tooltip title="Sort by team contribution percentage">
                     <FlexBox alignCenter gap={1} justifyEnd>
                       <Speed fontSize="small" />
-                      DORA Performance
+                      Team Contribution Rate
                     </FlexBox>
                   </Tooltip>
                 </TableSortLabel>
@@ -404,14 +419,14 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                 <TableCell align="right">
                   <Tooltip title={`${contributor.additions} lines added`}>
                     <Line big bold color="success.main">
-                      +{contributor.additions}
+                      +{formatNumber(contributor.additions)}
                     </Line>
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title={`${contributor.deletions} lines removed`}>
                     <Line big bold color="error.main">
-                      -{contributor.deletions}
+                      -{formatNumber(contributor.deletions)}
                     </Line>
                   </Tooltip>
                 </TableCell>
@@ -433,7 +448,7 @@ export const ContributorPerformanceTable: FC<ContributorPerformanceTableProps> =
                   )}
                 </TableCell>
                 <TableCell align="right">
-                  <DoraScoreChip score={contributor.doraScore} />
+                  <DoraScoreChip percentage={contributor.doraPercentage} />
                 </TableCell>
                 <TableCell align="right">
                   <Tooltip title={`Average lead time: ${contributor.leadTimeFormatted || 'N/A'}`}>
