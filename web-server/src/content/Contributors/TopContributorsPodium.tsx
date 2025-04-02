@@ -26,45 +26,36 @@ interface TopContributorsPodiumProps {
   contributors: ContributorData[];
 }
 
+// Helper function to calculate contributor score
+const calculateContributorScore = (contributor: ContributorData): number => {
+  // Start with a base score
+  let score = 0;
+  
+  // Add points for pull requests (weighted heavily)
+  score += (contributor.prs || 0) * 10;
+  
+  // Add points for commits
+  score += (contributor.contributions || 0) * 5;
+  
+  // Add points for code changes
+  score += (contributor.additions || 0) * 0.01;
+  score += (contributor.deletions || 0) * 0.005;
+  
+  // Bonus for successful deployments
+  score += (contributor.successfulDeployments || 0) * 8;
+  
+  // If we have a doraPercentage, use that as a boost
+  if (contributor.doraPercentage) {
+    score *= (1 + contributor.doraPercentage / 100);
+  }
+  
+  return score;
+};
+
+// Extended contributor type with score for ranking
 interface ContributorWithScore extends ContributorData {
   score: number;
 }
-
-interface PositionInfo {
-  label: string;
-  icon: JSX.Element;
-  subtext: string;
-}
-
-// Calculate comprehensive score for ranking
-const calculateContributorScore = (contributor: ContributorData): number => {
-  // Base score from contributions and PRs
-  let score = contributor.contributions * 5 + contributor.prs * 15;
-  
-  // Add points for code changes (balanced between additions and deletions)
-  score += (contributor.additions + contributor.deletions) / 100;
-  
-  // Add deployment success points
-  if (contributor.deploymentCount > 0) {
-    const successRate = contributor.successfulDeployments / contributor.deploymentCount;
-    score += successRate * 100;
-  }
-  
-  // Add DORA score points if available
-  if (contributor.doraScore) {
-    score += contributor.doraScore * 2;
-  }
-  
-  // Subtract points for longer lead times (if available)
-  if (contributor.leadTime) {
-    // Convert to hours
-    const leadTimeHours = contributor.leadTime / (1000 * 60 * 60);
-    // Less time is better - max penalty of 50 points
-    score -= Math.min(50, leadTimeHours / 10);
-  }
-  
-  return Math.max(0, score);
-};
 
 export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contributors }) => {
   const theme = useTheme();
@@ -110,7 +101,7 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
   const positionLabels = ["1st", "2nd", "3rd"];
   
   // Place heights for the podium bases
-  const placeHeights: string[] = ["120px", "90px", "60px"];
+  const placeHeights: string[] = ["125px", "95px", "65px"];
   
   // For less than 3 contributors, create a new display order
   let displayOrder: number[] = [];
@@ -132,7 +123,7 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
     others: 80 // 2nd and 3rd place
   };
   
-  // Render a single contributor podium
+  // SINGLE CONTRIBUTOR VIEW
   if (topContributors.length === 1) {
     const contributor = topContributors[0];
     return (
@@ -183,7 +174,13 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                     height: 120,
                     border: `4px solid ${medalColors[0]}`,
                     boxShadow: `0 4px 8px ${alpha(medalColors[0], 0.4)}`,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      border: `4px solid ${medalColors[0]}`,
+                      boxShadow: `0 8px 16px ${alpha(medalColors[0], 0.6)}`,
+                      transform: 'scale(1.05)'
+                    }
                   }}
                   onClick={() => handleContributorClick(contributor)}
                 />
@@ -224,7 +221,12 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
               variant="body1" 
               color="textSecondary" 
               textAlign="center"
-              sx={{ mb: 2 }}
+              sx={{ 
+                mb: 2,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
             >
               @{contributor.username}
             </Typography>
@@ -248,18 +250,7 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                   Pull Requests
                 </Typography>
               </FlexBox>
-              
-              {contributor.doraScore && (
-                <FlexBox col alignCenter>
-                  <Typography variant="h6" fontWeight="bold" color={medalColors[0]}>
-                    {contributor.doraScore.toFixed(0)}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    DORA Score
-                  </Typography>
-                </FlexBox>
-              )}
-
+             
               {contributor.doraPercentage && (
                 <FlexBox col alignCenter>
                   <Typography variant="h6" fontWeight="bold" color={medalColors[0]}>
@@ -272,24 +263,30 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
               )}
             </FlexBox>
             
-            {/* Position label */}
+            {/* Podium with rank integrated */}
             <Box
               sx={{
+                width: '150px',
+                height: '60px',
+                bgcolor: alpha(medalColors[0], 0.3),
+                borderRadius: '12px 12px 0 0',
                 border: `2px solid ${medalColors[0]}`,
-                backgroundColor: alpha(medalColors[0], 0.1),
-                borderRadius: 2,
-                py: 0.5,
-                px: 2,
-                mt: 1
+                borderBottom: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                mt: 2
               }}
             >
               <Typography
                 variant="h6"
                 fontWeight="bold"
-                color={medalColors[0]}
-                textAlign="center"
+                sx={{
+                  color: 'white',
+                }}
               >
-                1st Place
+                {positionLabels[0]}
               </Typography>
             </Box>
           </FlexBox>
@@ -298,6 +295,7 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
     );
   }
   
+  // MULTIPLE CONTRIBUTORS VIEW (2 or 3)
   return (
     <Paper sx={{ 
       p: 3, 
@@ -330,63 +328,90 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
           justifyContent: 'flex-end',
           flexGrow: 1
         }}>
-          {/* Podium bases */}
+          {/* Podium bases with integrated rank labels */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'center', 
             alignItems: 'flex-end',
             width: '100%',
-            height: '120px'
+            height: '125px'
           }}>
             {topContributors.length === 2 ? (
               // Two contributors - display 1st and 2nd place podiums
               <>
                 <Box 
                   key="podium-1"
+                  aria-label="Second place podium"
                   sx={{ 
                     width: '30%',
                     height: placeHeights[1],
-                    mx: 0.5,
-                    bgcolor: alpha(medalColors[1], 0.4),
+                    mx: {xs: 0.25, sm: 0.5},
+                    bgcolor: alpha(medalColors[1], 0.3),
                     borderTopLeftRadius: 12,
                     borderTopRightRadius: 12,
-                    border: `1px solid ${alpha(medalColors[1], 0.6)}`,
+                    border: `2px solid ${medalColors[1]}`,
                     borderBottom: 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
                   }}
-                />
+                >
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                    {positionLabels[1]}
+                  </Typography>
+                </Box>
                 <Box 
                   key="podium-0"
+                  aria-label="First place podium"
                   sx={{ 
                     width: '30%',
                     height: placeHeights[0],
-                    mx: 0.5,
-                    bgcolor: alpha(medalColors[0], 0.4),
+                    mx: {xs: 0.25, sm: 0.5},
+                    bgcolor: alpha(medalColors[0], 0.3),
                     borderTopLeftRadius: 12,
                     borderTopRightRadius: 12,
-                    border: `1px solid ${alpha(medalColors[0], 0.6)}`,
+                    border: `2px solid ${medalColors[0]}`,
                     borderBottom: 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
                   }}
-                />
+                >
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                    {positionLabels[0]}
+                  </Typography>
+                </Box>
               </>
             ) : (
               // Three contributors - display all podiums
               [1, 0, 2].map((podiumIndex) => (
                 <Box 
                   key={`podium-${podiumIndex}`}
+                  aria-label={`${positionLabels[podiumIndex]} place podium`}
                   sx={{ 
                     width: '30%',
                     height: placeHeights[podiumIndex],
-                    mx: 0.5,
-                    bgcolor: alpha(medalColors[podiumIndex], 0.4),
+                    mx: {xs: 0.25, sm: 0.5},
+                    bgcolor: alpha(medalColors[podiumIndex], 0.3),
                     borderTopLeftRadius: 12,
                     borderTopRightRadius: 12,
-                    border: `1px solid ${alpha(medalColors[podiumIndex], 0.6)}`,
+                    border: `2px solid ${medalColors[podiumIndex]}`,
                     borderBottom: 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative'
                   }}
-                />
+                >
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                    {positionLabels[podiumIndex]}
+                  </Typography>
+                </Box>
               ))
             )}
           </Box>
@@ -394,11 +419,11 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
           {/* Contributors */}
           <Grid container spacing={1} sx={{ 
             position: 'absolute', 
-            bottom: '120px', 
+            bottom: '125px', 
             left: 0, 
             right: 0,
             px: 2,
-            justifyContent: 'space-between'
+            justifyContent: 'space-around'
           }}>
             {displayOrder.map((index) => {
               const contributor = topContributors[index];
@@ -420,9 +445,9 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                     alignCenter 
                     sx={{ 
                       cursor: 'pointer',
-                      transition: 'transform 0.2s ease-in-out',
+                      transition: 'transform 0.3s ease-in-out',
                       '&:hover': {
-                        transform: 'translateY(-5px)'
+                        transform: 'translateY(-8px)'
                       },
                       height: '180px',
                       position: 'relative',
@@ -430,6 +455,9 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                       maxWidth: '180px'
                     }}
                     onClick={() => handleContributorClick(contributor)}
+                    role="button"
+                    aria-label={`View ${contributor.name}'s details`}
+                    tabIndex={0}
                   >
                     {/* Avatar with medal circle */}
                     <Box sx={{ 
@@ -447,6 +475,11 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                             height: avatarSize,
                             border: `4px solid ${medalColors[index]}`,
                             boxShadow: `0 4px 8px ${alpha(medalColors[index], 0.4)}`,
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              boxShadow: `0 8px 16px ${alpha(medalColors[index], 0.6)}`,
+                              transform: 'scale(1.05)'
+                            }
                           }}
                         />
                       </Tooltip>
@@ -456,13 +489,11 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                         sx={{
                           position: 'absolute',
                           top: -5,
-                          right: isFirst ? 
-                            `calc(50% - ${avatarSize/2}px - 15px)` : 
-                            `calc(50% - ${avatarSize/2}px - 5px)`,
+                          right: -15,
                           backgroundColor: medalColors[index],
                           borderRadius: '50%',
-                          width: 30,
-                          height: 30,
+                          width: 32,
+                          height: 32,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -470,7 +501,10 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                           zIndex: 2
                         }}
                       >
-                        <StarRate sx={{ color: 'white', fontSize: '1.1rem' }} />
+                        <StarRate sx={{ 
+                          color: 'white', 
+                          fontSize: '1.1rem' 
+                        }} />
                       </Box>
                     </Box>
                     
@@ -479,10 +513,15 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                       <Typography 
                         variant="h6" 
                         fontWeight="bold" 
-                        noWrap 
                         sx={{ 
                           fontSize: isFirst ? '1.1rem' : '1rem',
-                          mb: 0.5
+                          mb: 0.5,
+                          color: 'white',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
                         }}
                       >
                         {contributor.name}
@@ -491,17 +530,22 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                       <Typography 
                         variant="body2" 
                         color="textSecondary" 
-                        noWrap
+                        sx={{
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
                       >
                         @{contributor.username}
                       </Typography>
                     </Box>
                     
                     {/* Stats */}
-                    <FlexBox justifyCenter gap={1} mt={1}>
+                    <FlexBox justifyCenter wrap sx={{ mt: 1.5, gap: 0.5 }}>
                       <Tooltip title="Commits">
-                        <FlexBox alignCenter gap={0.5}>
-                          <Whatshot fontSize="small" color="primary" />
+                        <FlexBox alignCenter gap={0.5} sx={{ px: 0.5 }}>
+                          <Whatshot fontSize="small" sx={{ color: theme.colors.primary.main }} />
                           <Typography variant="body2" fontWeight="medium">
                             {contributor.contributions}
                           </Typography>
@@ -509,31 +553,30 @@ export const TopContributorsPodium: FC<TopContributorsPodiumProps> = ({ contribu
                       </Tooltip>
                       <Typography variant="body2" color="textSecondary">•</Typography>
                       <Tooltip title="Pull Requests">
-                        <Typography variant="body2" fontWeight="medium">
-                          {contributor.prs} PRs
-                        </Typography>
+                        <FlexBox alignCenter gap={0.5} sx={{ px: 0.5 }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            {contributor.prs} PRs
+                          </Typography>
+                        </FlexBox>
                       </Tooltip>
                       {contributor.doraPercentage && (
                         <>
                           <Typography variant="body2" color="textSecondary">•</Typography>
                           <Tooltip title="Team Contribution Rate">
-                            <Typography variant="body2" fontWeight="medium" color={medalColors[index]}>
+                            <Typography 
+                              variant="body2" 
+                              fontWeight="medium" 
+                              sx={{ 
+                                color: medalColors[index],
+                                textShadow: '0 1px 1px rgba(0, 0, 0, 0.2)'
+                              }}
+                            >
                               {contributor.doraPercentage}% Contrib
                             </Typography>
                           </Tooltip>
                         </>
                       )}
                     </FlexBox>
-                    
-                    {/* Position label */}
-                    <Typography
-                      variant="h6"
-                      fontWeight="bold"
-                      color={medalColors[index]}
-                      sx={{ mt: 1 }}
-                    >
-                      {positionLabels[index]}
-                    </Typography>
                   </FlexBox>
                 </Grid>
               );
