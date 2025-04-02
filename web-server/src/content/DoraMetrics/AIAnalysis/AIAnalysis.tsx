@@ -25,7 +25,8 @@ import {
   useTheme,
   Box,
   Chip,
-  Grid
+  Grid,
+  LinearProgress
 } from '@mui/material';
 import { AxiosError } from 'axios';
 import copy from 'copy-to-clipboard';
@@ -77,9 +78,9 @@ export enum AgentFeature {
 // Example prompts for each feature type
 const featureExamplePrompts: Record<AgentFeature, string[]> = {
   [AgentFeature.CODE_QUALITY]: [
-    "What are the main code quality issues in our codebase?",
-    "How can we improve our test coverage based on the metrics?",
-    "Where are the technical debt hotspots in our repositories?"
+    "Analyze our PRs for code quality issues and suggest improvements",
+    "What are the most common anti-patterns in our codebase?",
+    "Identify potential security vulnerabilities in our recent code changes"
   ],
   [AgentFeature.PERFORMANCE_PREDICTION]: [
     "What will our deployment frequency be next month based on current trends?",
@@ -167,6 +168,7 @@ export const AIAnalysis = () => {
     response: agentResponse, 
     isLoading: loadingAgentResponse,
     error: agentError,
+    prDiffs,
     generateResponse
   } = useAiAgent();
   
@@ -390,6 +392,20 @@ export const AIAnalysis = () => {
               {agentFeatureDescriptionMap[selectedAgentFeature]}
             </Typography>
             
+            {/* Code Quality Analysis Info */}
+            {selectedAgentFeature === AgentFeature.CODE_QUALITY && (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                <FlexBox col gap={1}>
+                  <Typography variant="body2" fontWeight="medium">
+                    Code Analysis Available
+                  </Typography>
+                  <Typography variant="body2">
+                    The AI agent will analyze real code from your recent pull requests to provide specific code quality insights.
+                  </Typography>
+                </FlexBox>
+              </Alert>
+            )}
+            
             {/* Example prompts */}
             <Box sx={{ mt: 1, mb: 1 }}>
               <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 1 }}>
@@ -450,10 +466,55 @@ export const AIAnalysis = () => {
               </Button>
             </FlexBox>
             
+            {selectedAgentFeature === AgentFeature.CODE_QUALITY && loadingAgentResponse && (
+              <Box sx={{ mt: 2 }}>
+                <FlexBox alignCenter gap={1} sx={{ mb: 1 }}>
+                  <CircularProgress size={16} />
+                  <Typography variant="body2" color="textSecondary">
+                    Fetching code from pull requests...
+                  </Typography>
+                </FlexBox>
+                <LinearProgress variant="indeterminate" />
+              </Box>
+            )}
+            
             {agentError && (
               <Alert severity="error" sx={{ mt: 2 }}>
                 {agentError}
               </Alert>
+            )}
+            
+            {/* Display PR information for code quality analysis */}
+            {selectedAgentFeature === AgentFeature.CODE_QUALITY && prDiffs.length > 0 && agentResponse && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Code Analysis Details
+                </Typography>
+                <Box sx={{ 
+                  backgroundColor: alpha(theme.colors.primary.main, 0.05),
+                  p: 2, 
+                  borderRadius: 1,
+                  maxHeight: '200px',
+                  overflowY: 'auto' 
+                }}>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Analyzed {prDiffs.length} pull request{prDiffs.length !== 1 ? 's' : ''}:
+                  </Typography>
+                  {prDiffs.map((pr, index) => (
+                    <FlexBox key={index} sx={{ mb: 1 }}>
+                      <Chip 
+                        size="small" 
+                        label={`#${pr.pull_id}`} 
+                        color="primary" 
+                        sx={{ mr: 1 }} 
+                      />
+                      <Typography variant="body2" noWrap>
+                        {pr.title} <Typography component="span" color="textSecondary" variant="caption">by {pr.author}</Typography>
+                      </Typography>
+                    </FlexBox>
+                  ))}
+                </Box>
+              </Box>
             )}
             
             {agentResponse && (

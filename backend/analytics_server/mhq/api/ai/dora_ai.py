@@ -477,10 +477,35 @@ def get_ai_agent_response(feature: str, query: str, model: str, data: dict):
             }
         }
         
+        # Handle PR code analysis for code quality feature
+        pr_code_section = ""
+        if feature == "code_quality" and "pull_request_diffs" in data and data["pull_request_diffs"]:
+            pr_diffs = data["pull_request_diffs"]
+            pr_code_section = "\n\nPULL REQUEST CODE FOR ANALYSIS:\n"
+            
+            # Add some analysis based on PR count
+            pr_code_section += f"Analyzing {len(pr_diffs)} recent pull requests:\n\n"
+            
+            # Add each PR's diff content
+            for i, pr_diff in enumerate(pr_diffs):
+                # Limit the diff content to avoid overwhelming the model
+                diff_content = pr_diff.get("diff_content", "")
+                if diff_content:
+                    # Truncate large diffs to ~10KB to avoid token limits
+                    if len(diff_content) > 10000:
+                        diff_content = diff_content[:10000] + "...[diff truncated due to size]"
+                
+                pr_code_section += f"PR #{i+1}: {pr_diff.get('title', 'Untitled')} by {pr_diff.get('author', 'Unknown')}\n"
+                pr_code_section += f"Repository: {pr_diff.get('repo_name', 'Unknown')}\n"
+                pr_code_section += f"ID: {pr_diff.get('pull_id', 'Unknown')}\n"
+                pr_code_section += "--- Diff Content ---\n"
+                pr_code_section += diff_content or "No diff content available"
+                pr_code_section += "\n\n" + "-" * 50 + "\n\n"
+        
         # Create feature-specific prompts for the AI model
         prompt_templates = {
             "code_quality": """
-You are an AI code quality analysis agent for a DevOps platform. Analyze the following DORA metrics data to provide insights on code quality.
+You are an AI code quality analysis agent for a DevOps platform. Analyze the following DORA metrics data and pull request code to provide insights on code quality.
 
 USER QUERY: {query}
 
@@ -492,14 +517,25 @@ ANALYSIS CONTEXT:
 - Key indicators to analyze: {key_indicators}
 - Potential improvement areas: {improvement_areas}
 
-Approach this analysis with specific attention to how code quality impacts deployment speed, stability, and maintainability. Consider how the team's code quality practices appear based on these metrics.
+{pr_code_section}
 
-Please provide a detailed analysis of code quality trends and actionable recommendations. Include:
-1. Current code quality assessment based on the metrics
-2. Specific suggestions for improving coding practices
-3. Technical debt hotspots and remediation strategies
-4. Testing and review process improvements
-5. Connections between code quality metrics and overall performance
+Approach this analysis by carefully reviewing both the DORA metrics and the actual code in the pull requests. Identify patterns, potential issues, and quality concerns in the code. Look for:
+
+1. Code smells and anti-patterns
+2. Complexity issues
+3. Test coverage gaps
+4. Potential bugs or security vulnerabilities
+5. Architecture and design considerations
+6. Performance implications
+7. Adherence to coding standards
+
+Please provide a detailed analysis of code quality including:
+1. Overall code quality assessment based on the analyzed PRs
+2. Specific issues identified in the code with examples from the PRs
+3. Technical debt areas identified with evidence
+4. Recommendations for testing improvements
+5. Suggestions for refactoring and code organization
+6. Connections between code quality patterns and DORA metrics performance
 
 Format your response using Markdown with clear sections and bullet points. Ensure recommendations are specific and actionable.
 """,
@@ -618,6 +654,7 @@ Please provide a clear answer that directly addresses the user's question. Use s
         format_params = {
             "query": query,
             "data_json": data_json,
+            "pr_code_section": pr_code_section if feature == "code_quality" else "",
             **formatted_metadata
         }
         
