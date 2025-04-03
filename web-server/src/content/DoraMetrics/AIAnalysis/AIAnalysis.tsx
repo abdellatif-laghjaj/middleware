@@ -471,7 +471,7 @@ export const AIAnalysis = () => {
                 <FlexBox alignCenter gap={1} sx={{ mb: 1 }}>
                   <CircularProgress size={16} />
                   <Typography variant="body2" color="textSecondary">
-                    Fetching code from pull requests...
+                    Analyzing code from pull requests...
                   </Typography>
                 </FlexBox>
                 <LinearProgress variant="indeterminate" />
